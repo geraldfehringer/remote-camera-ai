@@ -1,6 +1,9 @@
 import { readFile } from 'node:fs/promises'
 import { stubNarrate } from './providers/stub.js'
 import { geminiNarrate } from './providers/gemini.js'
+import { claudeNarrate } from './providers/claude.js'
+import { openaiNarrate } from './providers/openai.js'
+import { togetherNarrate } from './providers/together.js'
 import { NarrationResponseSchema, systemPrompt, userPrompt, type NarrationResponse } from './prompts.js'
 
 export type LlmProvider = 'gemini' | 'claude' | 'openai' | 'together' | 'stub'
@@ -75,6 +78,18 @@ export async function narrateAlert(input: LlmNarrationInput): Promise<LlmNarrati
     case 'gemini': {
       if (!config.apiKeys.google) throw new Error('GOOGLE_API_KEY missing')
       return geminiNarrate(args, config.apiKeys.google, config.model, config.timeoutMs)
+    }
+    case 'claude': {
+      if (!config.apiKeys.anthropic) throw new Error('ANTHROPIC_API_KEY missing')
+      return claudeNarrate(args, config.apiKeys.anthropic, config.model, config.timeoutMs)
+    }
+    case 'openai': {
+      if (!config.apiKeys.openai) throw new Error('OPENAI_API_KEY missing')
+      return openaiNarrate(args, config.apiKeys.openai, config.model, config.timeoutMs)
+    }
+    case 'together': {
+      if (!config.apiKeys.together) throw new Error('TOGETHER_API_KEY missing')
+      return togetherNarrate(args, config.apiKeys.together, config.model, config.timeoutMs)
     }
     default:
       throw new Error(`Provider ${config.provider} not implemented yet`)
