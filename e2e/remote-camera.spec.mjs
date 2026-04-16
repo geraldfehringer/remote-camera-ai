@@ -55,6 +55,19 @@ test('camera and viewer connect through the browser flow', async ({ browser }) =
   const snapshotSrc = await snapshot.getAttribute('src')
   expect(snapshotSrc).toContain('/api/sessions/')
 
+  // Alert Log assertions (Task 12 UI + Task 14).
+  // Runtime-agnostic: the spec does not know which LLM_PROVIDER the already-running
+  // api container was built with. With LLM_PROVIDER=stub the summary reads
+  // "[stub: motion-only triggered]"; with any other provider it reads either the
+  // provider's short summary or the placeholder "LLM laeuft..." while the call
+  // is in flight. Both satisfy a non-empty assertion.
+  const firstAlertItem = viewerPage.locator('[data-testid="alert-log-item"]').first()
+  await expect(firstAlertItem).toBeVisible({ timeout: 15_000 })
+
+  const firstAlertSummary = firstAlertItem.locator('.alert-log-summary')
+  await expect(firstAlertSummary).toBeVisible({ timeout: 10_000 })
+  await expect(firstAlertSummary).not.toHaveText('', { timeout: 10_000 })
+
   await cameraContext.close()
   await viewerContext.close()
   await homeContext.close()

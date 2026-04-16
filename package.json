@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test:e2e": "node e2e/generate-fake-video.mjs && playwright test"
+    "test:e2e": "LLM_PROVIDER=stub LLM_MODEL=stub node e2e/generate-fake-video.mjs && LLM_PROVIDER=stub LLM_MODEL=stub playwright test"
   },
   "devDependencies": {
     "@playwright/test": "^1.55.1"
