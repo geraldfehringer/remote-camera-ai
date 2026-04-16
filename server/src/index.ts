@@ -243,6 +243,55 @@ async function readVisionRuntimeSummary(): Promise<VisionRuntimeSummary> {
   }
 }
 
+const MAX_EVENTS_PER_SESSION = 200
+const SESSION_TTL_HOURS_DEFAULT = 72
+const SWEEP_INTERVAL_MS = 10 * 60 * 1000
+
+type AlertEventLlm = {
+  provider: string
+  model: string
+  shortSummary: string
+  threatLevel: 0 | 1 | 2
+  suppressed: boolean
+  ranAt: string
+}
+
+type AlertEvent = {
+  id: string
+  createdAt: string
+  triggeredAt: string
+  target: string
+  species?: string
+  speciesCommonName?: string
+  speciesConfidence?: number
+  confidence: number
+  trackId?: string
+  snapshotUrl: string
+  motionScore: number
+  llm?: AlertEventLlm
+  suppressed: boolean
+}
+
+type SessionCounters = {
+  totalDetections: number
+  totalTriggered: number
+  totalAlerts: number
+  alertsByTarget: Record<string, number>
+  llmBudgetSkipped: number
+  llmFailed: number
+}
+
+function createEmptyCounters(): SessionCounters {
+  return {
+    totalDetections: 0,
+    totalTriggered: 0,
+    totalAlerts: 0,
+    alertsByTarget: {},
+    llmBudgetSkipped: 0,
+    llmFailed: 0,
+  }
+}
+
 type Session = {
   id: string
   createdAt: string
@@ -251,6 +300,10 @@ type Session = {
   sockets: Partial<Record<Role, WebSocket>>
   latestDetection?: DetectionResult
   llmUsage: LlmUsageSummary
+  events: AlertEvent[]
+  counters: SessionCounters
+  llmCallTimestamps: number[]
+  llmCallsTotal: number
 }
 
 type StoredSession = Omit<Session, 'sockets'>
@@ -362,7 +415,11 @@ async function persistSessions() {
       cameraToken: session.cameraToken,
       viewerToken: session.viewerToken,
       latestDetection: session.latestDetection,
-      llmUsage: session.llmUsage
+      llmUsage: session.llmUsage,
+      events: session.events,
+      counters: session.counters,
+      llmCallTimestamps: session.llmCallTimestamps,
+      llmCallsTotal: session.llmCallsTotal
     })),
     null,
     2
@@ -394,6 +451,10 @@ async function loadSessions() {
               note: z.string()
             })
             .optional(),
+          events: z.array(z.any()).optional(),
+          counters: z.any().optional(),
+          llmCallTimestamps: z.array(z.number()).optional(),
+          llmCallsTotal: z.number().optional(),
           latestDetection: z
             .object({
               targetLabel: z.string(),
@@ -442,14 +503,21 @@ async function loadSessions() {
       )
       .parse(JSON.parse(content))
 
-    for (const session of parsed) {
-      const latestDetection = session.latestDetection
-        ? withDetectionDefaults(session.latestDetection)
+    for (const raw of parsed) {
+      const latestDetection = raw.latestDetection
+        ? withDetectionDefaults(raw.latestDetection)
         : undefined
-      sessions.set(session.id, {
-        ...session,
-        llmUsage: session.llmUsage ?? createZeroLlmUsageSummary(),
+      sessions.set(raw.id, {
+        id: raw.id,
+        createdAt: raw.createdAt,
+        cameraToken: raw.cameraToken,
+        viewerToken: raw.viewerToken,
+        llmUsage: raw.llmUsage ?? createZeroLlmUsageSummary(),
         latestDetection,
+        events: Array.isArray(raw.events) ? (raw.events as AlertEvent[]) : [],
+        counters: (raw.counters as SessionCounters | undefined) ?? createEmptyCounters(),
+        llmCallTimestamps: Array.isArray(raw.llmCallTimestamps) ? raw.llmCallTimestamps : [],
+        llmCallsTotal: typeof raw.llmCallsTotal === 'number' ? raw.llmCallsTotal : 0,
         sockets: {}
       })
     }
@@ -631,7 +699,11 @@ app.post('/api/sessions', async (request) => {
     cameraToken: randomToken(),
     viewerToken: randomToken(),
     sockets: {},
-    llmUsage: createZeroLlmUsageSummary()
+    llmUsage: createZeroLlmUsageSummary(),
+    events: [],
+    counters: createEmptyCounters(),
+    llmCallTimestamps: [],
+    llmCallsTotal: 0
   }
 
   sessions.set(session.id, session)
