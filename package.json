@@ -1,0 +1,12 @@
+{
+  "name": "remote-camera-ai-e2e",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "test:e2e": "node e2e/generate-fake-video.mjs && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.1"
+  }
+}

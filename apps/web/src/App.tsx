@@ -1,0 +1,1740 @@
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react'
+import QRCode from 'qrcode'
+import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
+import { useWakeLock } from './hooks/useWakeLock'
+import { useSignaling, type SignalingEnvelopeExtras } from './hooks/useSignaling'
+import {
+  createSession,
+  getApiBaseUrl,
+  getSession,
+  readConfig,
+} from './lib/api'
+import type {
+  AppConfig,
+  DetectionResult,
+  LlmRecommendation,
+  LlmUsageSummary,
+  SessionLinks,
+  SessionMetadata,
+  VisionRuntimeSummary,
+} from './lib/types'
+
+type FacingMode = 'environment' | 'user'
+
+type VideoCapabilities = {
+  torch: boolean
+  zoomMin?: number
+  zoomMax?: number
+  zoomStep?: number
+}
+
+type ZoomPreset = {
+  label: string
+  value: number
+}
+
+type ExtendedMediaTrackCapabilities = MediaTrackCapabilities & {
+  torch?: boolean
+  zoom?: MediaSettingsRange
+}
+
+type ExtendedMediaTrackConstraints = MediaTrackConstraints & {
+  advanced?: Array<MediaTrackConstraints & { torch?: boolean; zoom?: number }>
+}
+
+type DiagnosticStatus = 'idle' | 'running' | 'ok' | 'warning' | 'error'
+
+type DiagnosticEntry = {
+  status: DiagnosticStatus
+  detail: string
+}
+
+type DiagnosticsState = {
+  secureContext: DiagnosticEntry
+  api: DiagnosticEntry
+  signaling: DiagnosticEntry
+  turn: DiagnosticEntry
+  lastCheckedAt: string | null
+}
+
+const apiBaseUrl = getApiBaseUrl()
+
+const initialDiagnostics: DiagnosticsState = {
+  secureContext: { status: 'idle', detail: 'Noch nicht geprueft.' },
+  api: { status: 'idle', detail: 'Noch nicht geprueft.' },
+  signaling: { status: 'idle', detail: 'Noch nicht geprueft.' },
+  turn: { status: 'idle', detail: 'Noch nicht geprueft.' },
+  lastCheckedAt: null,
+}
+
+const targetAliasMap: Record<string, string> = {
+  human: 'person',
+  people: 'person',
+  man: 'person',
+  woman: 'person',
+  boy: 'person',
+  girl: 'person',
+  child: 'person',
+  pedestrian: 'person',
+  walker: 'person',
+  bike: 'bicycle',
+  cycle: 'bicycle',
+  motorbike: 'motorcycle',
+  scooter: 'motorcycle',
+  automobile: 'car',
+  sedan: 'car',
+  hatchback: 'car',
+  taxi: 'car',
+  vehicle: 'car',
+  pickup: 'truck',
+  lorry: 'truck',
+  coach: 'bus',
+  ship: 'boat',
+  pigeon: 'bird',
+  dove: 'bird',
+  seagull: 'bird',
+  crow: 'bird',
+  sparrow: 'bird',
+  duck: 'bird',
+  goose: 'bird',
+  puppy: 'dog',
+  canine: 'dog',
+  kitten: 'cat',
+  feline: 'cat',
+  plant: 'potted plant',
+  sofa: 'couch',
+  table: 'dining table',
+  'mobile phone': 'cell phone',
+  smartphone: 'cell phone',
+  phone: 'cell phone',
+  television: 'tv',
+  'tv monitor': 'tv',
+  parcel: 'suitcase',
+  luggage: 'suitcase',
+  'motion only': 'motion-only',
+  'movement only': 'motion-only',
+  mensch: 'person',
+  menschen: 'person',
+  mann: 'person',
+  frau: 'person',
+  junge: 'person',
+  maedchen: 'person',
+  mädchen: 'person',
+  kind: 'person',
+  fussgaenger: 'person',
+  fußgänger: 'person',
+  fussganger: 'person',
+  rad: 'bicycle',
+  fahrrad: 'bicycle',
+  motorrad: 'motorcycle',
+  roller: 'motorcycle',
+  auto: 'car',
+  wagen: 'car',
+  pkw: 'car',
+  lieferwagen: 'truck',
+  lastwagen: 'truck',
+  lkw: 'truck',
+  schiff: 'boat',
+  taube: 'bird',
+  vogel: 'bird',
+  moewe: 'bird',
+  möwe: 'bird',
+  rabe: 'bird',
+  spatz: 'bird',
+  ente: 'bird',
+  gans: 'bird',
+  hund: 'dog',
+  katze: 'cat',
+  pflanze: 'potted plant',
+  tisch: 'dining table',
+  handy: 'cell phone',
+  mobiltelefon: 'cell phone',
+  fernseher: 'tv',
+  paket: 'suitcase',
+  gepaeck: 'suitcase',
+  gepäck: 'suitcase',
+  'nur bewegung': 'motion-only',
+}
+
+function normalizeTargetText(rawValue: string) {
+  return rawValue
+    .toLowerCase()
+    .trim()
+    .replaceAll('ä', 'ae')
+    .replaceAll('ö', 'oe')
+    .replaceAll('ü', 'ue')
+    .replaceAll('ß', 'ss')
+    .replace(/\s+/g, ' ')
+}
+
+function resolveTargetInput(rawValue: string, supportedTargets: string[]) {
+  const normalized = normalizeTargetText(rawValue)
+  const normalizedTargets = supportedTargets.map((target) => normalizeTargetText(target))
+  if (!normalized) {
+    return {
+      normalized: '',
+      resolved: null as string | null,
+      confidence: 'empty' as const,
+      note: 'Bitte ein konkretes Zielobjekt eingeben.',
+    }
+  }
+
+  if (targetAliasMap[normalized]) {
+    return {
+      normalized,
+      resolved: targetAliasMap[normalized],
+      confidence: 'high' as const,
+      note: 'Alias wurde eindeutig auf eine Modellklasse aufgeloest.',
+    }
+  }
+
+  if (normalizedTargets.includes(normalized)) {
+    return {
+      normalized,
+      resolved: normalized,
+      confidence: 'high' as const,
+      note: 'Direkter Treffer auf eine unterstuetzte Modellklasse.',
+    }
+  }
+
+  const escaped = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  for (const phrase of Object.keys(targetAliasMap).sort((left, right) => right.length - left.length)) {
+    if (new RegExp(`(^|[^a-z])${escaped(phrase)}([^a-z]|$)`).test(normalized)) {
+      return {
+        normalized,
+        resolved: targetAliasMap[phrase],
+        confidence: 'medium' as const,
+        note: `Die Eingabe wird voraussichtlich als "${targetAliasMap[phrase]}" ausgewertet.`,
+      }
+    }
+  }
+
+  for (const label of [...normalizedTargets].sort((left, right) => right.length - left.length)) {
+    if (label === 'motion-only') {
+      continue
+    }
+    if (new RegExp(`(^|[^a-z])${escaped(label)}([^a-z]|$)`).test(normalized)) {
+      return {
+        normalized,
+        resolved: label,
+        confidence: 'medium' as const,
+        note: `Die Eingabe enthaelt die Modellklasse "${label}".`,
+      }
+    }
+  }
+
+  return {
+    normalized,
+    resolved: normalized,
+    confidence: 'low' as const,
+    note: 'Keine sichere Modellklasse erkannt. Bitte ein konkreteres Objekt wie "pigeon", "person" oder "white car" verwenden.',
+  }
+}
+
+function snapZoomValue(value: number, min: number, max: number, step?: number) {
+  const clamped = Math.min(max, Math.max(min, value))
+  if (!step || step <= 0) {
+    return Number(clamped.toFixed(2))
+  }
+
+  const snapped = min + Math.round((clamped - min) / step) * step
+  return Number(Math.min(max, Math.max(min, snapped)).toFixed(2))
+}
+
+function buildZoomPresets(capabilities: VideoCapabilities): ZoomPreset[] {
+  if (capabilities.zoomMin === undefined || capabilities.zoomMax === undefined) {
+    return []
+  }
+
+  const min = capabilities.zoomMin
+  const max = capabilities.zoomMax
+  const step = capabilities.zoomStep
+
+  const desiredValues =
+    min <= 1.05 && max >= 3 ? [1, 2, 3] : [min, min + (max - min) / 2, max]
+
+  const presets = desiredValues.map((value, index) => {
+    const snapped = snapZoomValue(value, min, max, step)
+    return {
+      label: `${index + 1}`,
+      value: snapped,
+    }
+  })
+
+  return presets.filter(
+    (preset, index, collection) =>
+      collection.findIndex((candidate) => Math.abs(candidate.value - preset.value) < 0.01) === index,
+  )
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomePage />} />
+      <Route path="/camera/:sessionId" element={<CameraPage />} />
+      <Route path="/view/:sessionId" element={<ViewerPage />} />
+    </Routes>
+  )
+}
+
+function HomePage() {
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [links, setLinks] = useState<SessionLinks | null>(null)
+  const [qrCode, setQrCode] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsState>(initialDiagnostics)
+  const [diagnosticsRunning, setDiagnosticsRunning] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    void readConfig()
+      .then(setConfig)
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : 'Konfiguration konnte nicht geladen werden.')
+      })
+  }, [])
+
+  useEffect(() => {
+    if (!links) {
+      setQrCode(null)
+      return
+    }
+
+    void QRCode.toDataURL(links.cameraUrl, {
+      errorCorrectionLevel: 'M',
+      margin: 1,
+      width: 320,
+      color: {
+        dark: '#ecf3ff',
+        light: '#0000',
+      },
+    }).then(setQrCode)
+  }, [links])
+
+  const runDiagnostics = useEffectEvent(async () => {
+    setDiagnosticsRunning(true)
+    setDiagnostics({
+      secureContext: {
+        status: 'running',
+        detail: 'Pruefe, ob der Browser die Kamera-API in diesem Kontext freischaltet.',
+      },
+      api: { status: 'running', detail: 'Pruefe den Health-Endpoint ueber den Frontend-Port.' },
+      signaling: { status: 'running', detail: 'Pruefe WebSocket-Signaling ueber denselben Browserpfad.' },
+      turn: { status: 'running', detail: 'Pruefe, ob der Browser Relay-Kandidaten vom TURN-Server beziehen kann.' },
+      lastCheckedAt: null,
+    })
+
+    const nextSecureContext = evaluateCameraBrowserSupport()
+    let nextApi: DiagnosticEntry = {
+      status: 'error',
+      detail: 'API-Pruefung wurde nicht abgeschlossen.',
+    }
+    let nextSignaling: DiagnosticEntry = {
+      status: 'error',
+      detail: 'WebSocket-Pruefung wurde nicht abgeschlossen.',
+    }
+    let nextTurn: DiagnosticEntry = {
+      status: 'warning',
+      detail: 'TURN-Pruefung wurde nicht abgeschlossen.',
+    }
+
+    try {
+      const healthResponse = await fetch(`${apiBaseUrl}/api/health`, { cache: 'no-store' })
+      if (!healthResponse.ok) {
+        throw new Error(`Health-Request lieferte HTTP ${healthResponse.status}.`)
+      }
+
+      const health = (await healthResponse.json()) as { ok?: boolean }
+      nextApi = health.ok
+        ? { status: 'ok', detail: 'API antwortet ueber denselben Host und Port wie das Frontend.' }
+        : { status: 'error', detail: 'Health-Antwort war erreichbar, aber nicht erfolgreich.' }
+    } catch (reason) {
+      nextApi = {
+        status: 'error',
+        detail: reason instanceof Error ? reason.message : 'API ist vom Browser aus nicht erreichbar.',
+      }
+    }
+
+    nextSignaling = nextApi.status === 'ok'
+      ? {
+          status: 'ok',
+          detail: 'Signaling-Proxy /ws ist ueber den Frontend-Host erreichbar.',
+        }
+      : {
+          status: 'error',
+          detail: 'Signaling ist nicht erreichbar, solange die API nicht antwortet.',
+        }
+
+    try {
+      nextTurn = await probeTurnRelay(config)
+    } catch (reason) {
+      nextTurn = {
+        status: 'warning',
+        detail:
+          reason instanceof Error
+            ? reason.message
+            : 'TURN-Pruefung war nicht eindeutig. STUN/host-Kandidaten koennen im LAN dennoch genuegen.',
+      }
+    }
+
+    setDiagnostics({
+      secureContext: nextSecureContext,
+      api: nextApi,
+      signaling: nextSignaling,
+      turn: nextTurn,
+      lastCheckedAt: new Date().toISOString(),
+    })
+    setDiagnosticsRunning(false)
+  })
+
+  useEffect(() => {
+    if (!config) {
+      return
+    }
+
+    void runDiagnostics()
+  }, [config])
+
+  async function handleCreateSession() {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const nextLinks = await createSession()
+      setLinks(nextLinks)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Session konnte nicht erzeugt werden.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <main className="page-shell" data-testid="home-page">
+      <section className="hero-card">
+        <div className="hero-copy">
+          <span className="eyebrow">Android Remote Camera</span>
+          <h1>Zwei Android-Geraete. Ein Mac mini. Alles im Browser.</h1>
+          <p>
+            Der Mac mini hostet die Docker-Services lokal. Ein Android-Smartphone fungiert als
+            Kamera-Sender, ein zweites als Viewer fuer Live-Ansicht und Alerts.
+          </p>
+          <div className="hero-actions">
+            <button
+              className="primary-button"
+              data-testid="create-session"
+              disabled={loading}
+              onClick={() => void handleCreateSession()}
+            >
+              {loading ? 'Erzeuge Session...' : 'Neue Session starten'}
+            </button>
+            <a className="secondary-button" href={apiBaseUrl} target="_blank" rel="noreferrer">
+              API pruefen
+            </a>
+          </div>
+        </div>
+
+        <div className="hero-matrix">
+          <Metric title="Deploy" value="Docker Compose" detail="alles lokal auf dem Mac mini" />
+          <Metric title="Sender" value="Android" detail="Rueckkamera im Browser" />
+          <Metric title="Viewer" value="Android" detail="Live-View und Alert-Feed" />
+        </div>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <h2>Lokales Setup</h2>
+          <ol className="ordered-list">
+            <li>Mac mini und beide Android-Smartphones ins gleiche WLAN bringen.</li>
+            <li>`PUBLIC_WEB_URL` und `PUBLIC_API_URL` auf den Mac-mini-Hostnamen oder seine LAN-IP setzen.</li>
+            <li>Session erzeugen und den Camera-Link am Kamera-Smartphone oeffnen.</li>
+            <li>Viewer-Link am zweiten Android-Geraet oeffnen.</li>
+          </ol>
+        </article>
+
+        <article className="glass-card">
+          <h2>Empfohlene Defaults</h2>
+          <p>
+            Detection laeuft lokal. Fuer optionale Bildzusammenfassungen ist aktuell
+            <strong> {config?.llmRecommendation.model ?? 'LLM_MODEL'}</strong> als
+            kosteneffizienter Default hinterlegt.
+          </p>
+          <p className="muted-copy">{config?.llmRecommendation.note}</p>
+        </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <h2>LLM-Kostenkontrolle</h2>
+          <p className="muted-copy">
+            Diese Anzeige zeigt transparent, ob Motion Detection aktuell externes LLM-Budget verbraucht.
+          </p>
+          <LlmUsagePanel usage={config?.llmUsage} recommendation={config?.llmRecommendation} />
+        </article>
+
+        <article className="glass-card">
+          <h2>Token Guardrail</h2>
+          <p className="muted-copy">
+            Solange Motion Detection lokal bleibt, muessen hier fuer Prompt, Completion und Total Tokens jeweils <strong>0</strong> stehen.
+          </p>
+          <p className="muted-copy">
+            Erst wenn spaeter optionale Event-Beschreibungen per LLM dazukommen, duerfen diese Zaehler ansteigen.
+          </p>
+        </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Vision Runtime</h2>
+              <p className="muted-copy">
+                Zeigt direkt, ob YOLOE und SAM 3 im laufenden Docker-Stack wirklich verfuegbar sind.
+              </p>
+            </div>
+            <StatusBadge active={Boolean(config?.visionRuntime.reachable)}>Vision</StatusBadge>
+          </div>
+          <VisionRuntimePanel runtime={config?.visionRuntime} />
+        </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>LAN-Diagnose</h2>
+              <p className="muted-copy">
+                Prueft exakt den Browserpfad, den spaeter auch Kamera- und Viewer-Android nutzen.
+              </p>
+            </div>
+            <StatusBadge active={!diagnosticsRunning}>Netz</StatusBadge>
+          </div>
+          <div className="diagnostic-list">
+            <DiagnosticRow
+              label="Kamera-API"
+              entry={diagnostics.secureContext}
+              testId="diagnostic-secure-context"
+            />
+            <DiagnosticRow
+              label="API"
+              entry={diagnostics.api}
+              testId="diagnostic-api"
+            />
+            <DiagnosticRow
+              label="WebSocket"
+              entry={diagnostics.signaling}
+              testId="diagnostic-signaling"
+            />
+            <DiagnosticRow
+              label="TURN"
+              entry={diagnostics.turn}
+              testId="diagnostic-turn"
+            />
+          </div>
+          <div className="inline-actions">
+            <button
+              className="secondary-button"
+              data-testid="rerun-diagnostics"
+              disabled={diagnosticsRunning}
+              onClick={() => void runDiagnostics()}
+            >
+              {diagnosticsRunning ? 'Diagnose laeuft...' : 'Diagnose erneut starten'}
+            </button>
+          </div>
+          <p className="muted-copy">
+            Ziel im gleichen WLAN: <code>{describeNetworkTarget(config?.publicWebUrl)}</code>
+          </p>
+          {diagnostics.lastCheckedAt ? (
+            <p className="muted-copy">Letzter Check: {formatTimestamp(diagnostics.lastCheckedAt)}</p>
+          ) : null}
+        </article>
+
+        <article className="glass-card">
+          <h2>Browser-Ziel fuer Android</h2>
+          <p className="muted-copy">
+            Beide Android-Geraete sollen nur das Frontend auf dem Mac mini oeffnen. API und
+            Signaling laufen danach intern ueber denselben Host.
+          </p>
+          <p className="session-link" data-testid="lan-target">
+            {config?.publicWebUrl ?? 'PUBLIC_WEB_URL fehlt'}
+          </p>
+          <p className="muted-copy">
+            Falls <code>macmini.local</code> auf Android nicht aufgeloest wird, verwendet direkt
+            die LAN-IP des Mac mini mit demselben Port.
+          </p>
+        </article>
+      </section>
+
+      {error ? <p className="status-error">{error}</p> : null}
+
+      {links ? (
+        <section className="session-layout">
+          <article className="glass-card">
+            <h2>Camera Link</h2>
+            <p className="muted-copy">
+              Diesen Link auf dem Android-Handy oeffnen, das als Remote-Kamera dient.
+            </p>
+            <a
+              className="session-link"
+              data-testid="camera-link"
+              href={links.cameraUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {links.cameraUrl}
+            </a>
+            {qrCode ? <img className="qr-code" src={qrCode} alt="QR-Code fuer den Camera-Link" /> : null}
+          </article>
+
+          <article className="glass-card">
+            <h2>Viewer Link</h2>
+            <p className="muted-copy">
+              Diesen Link auf dem zweiten Android-Geraet oder alternativ auf Tablet/Desktop oeffnen.
+            </p>
+            <a
+              className="session-link"
+              data-testid="viewer-link"
+              href={links.viewerUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {links.viewerUrl}
+            </a>
+            <div className="inline-actions">
+              <Link className="secondary-button" to={toLocalRoute(links.viewerUrl)}>
+                Im aktuellen Tab oeffnen
+              </Link>
+            </div>
+          </article>
+        </section>
+      ) : null}
+    </main>
+  )
+}
+
+function ViewerPage() {
+  const { sessionId } = useParams()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [metadata, setMetadata] = useState<SessionMetadata | null>(null)
+  const [detection, setDetection] = useState<DetectionResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    if (!sessionId || !token) {
+      setError('Viewer-Token oder Session-ID fehlen.')
+      return
+    }
+
+    void Promise.all([readConfig(), getSession(sessionId, token)])
+      .then(([loadedConfig, loadedSession]) => {
+        setConfig(loadedConfig)
+        setMetadata(loadedSession)
+        setDetection(loadedSession.latestDetection)
+      })
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : 'Viewer konnte nicht initialisiert werden.')
+      })
+  }, [sessionId, token])
+
+  const handleEnvelope = useCallback((envelope: SignalingEnvelopeExtras) => {
+    if (envelope.type === 'session-state') {
+      const nextState = envelope.payload as Partial<SessionMetadata> & {
+        latestDetection?: DetectionResult | null
+      }
+      setMetadata((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          ...nextState,
+          latestDetection: nextState.latestDetection ?? current.latestDetection,
+        }
+      })
+      if (nextState.latestDetection !== undefined) {
+        setDetection(nextState.latestDetection ?? null)
+      }
+    } else if (envelope.type === 'detection') {
+      setDetection(envelope.payload as DetectionResult)
+    } else if (envelope.type === 'error') {
+      setError(envelope.payload.message)
+    }
+  }, [])
+
+  const { remoteStream, lastError } = useSignaling({
+    sessionId: sessionId ?? null,
+    role: 'viewer',
+    token,
+    iceServers: config?.iceServers ?? null,
+    localStream: null,
+    polite: true,
+    onEnvelope: handleEnvelope,
+  })
+
+  useEffect(() => {
+    const video = remoteVideoRef.current
+    if (!video) return
+    video.srcObject = remoteStream
+    if (remoteStream) {
+      video.play().catch(() => {
+        /* autoplay blocked is fine for muted video */
+      })
+    }
+  }, [remoteStream])
+
+  const displayedError = error ?? lastError
+
+  return (
+    <PageLayout
+      title="Viewer"
+      subtitle="Zweites Android-Geraet fuer Live-Ansicht und Alerts."
+      backLink
+    >
+      <section className="grid-two">
+        <article className="glass-card video-card">
+          <div className="card-header">
+            <div>
+              <h2>Live View</h2>
+              <p className="muted-copy">
+                {metadata?.cameraConnected ? 'Kamera verbunden' : 'Warte auf Kamera-Sender'}
+              </p>
+            </div>
+            <StatusBadge active={Boolean(metadata?.cameraConnected)}>Stream</StatusBadge>
+          </div>
+          <video
+            ref={remoteVideoRef}
+            data-testid="viewer-video"
+            className="video-frame"
+            autoPlay
+            playsInline
+            muted
+          />
+        </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Alert Feed</h2>
+              <p className="muted-copy">Alarm bei Bewegung und passendem Zielobjekt.</p>
+            </div>
+            <StatusBadge active={Boolean(detection?.triggered)}>Alarm</StatusBadge>
+          </div>
+          {detection ? (
+            <AlertCard detection={detection} />
+          ) : (
+            <p className="muted-copy">Noch kein Detection-Ereignis vorhanden.</p>
+          )}
+        </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>LLM-Tokenverbrauch</h2>
+              <p className="muted-copy">Kostenkontrolle fuer den aktuellen Viewer-Run.</p>
+            </div>
+            <StatusBadge active={!metadata?.llmUsage.usedForMotionDetection}>Kosten</StatusBadge>
+          </div>
+          <LlmUsagePanel usage={metadata?.llmUsage} recommendation={config?.llmRecommendation} />
+        </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Vision Runtime</h2>
+              <p className="muted-copy">Laufzeitstatus des lokalen Vision-Stacks fuer den Viewer.</p>
+            </div>
+            <StatusBadge active={Boolean(config?.visionRuntime.reachable)}>Vision</StatusBadge>
+          </div>
+          <VisionRuntimePanel runtime={config?.visionRuntime} lastDetection={detection} />
+        </article>
+      </section>
+
+      {displayedError ? <p className="status-error">{displayedError}</p> : null}
+    </PageLayout>
+  )
+}
+
+function CameraPage() {
+  const { sessionId } = useParams()
+  const [searchParams] = useSearchParams()
+  const token = searchParams.get('token')
+
+  const [config, setConfig] = useState<AppConfig | null>(null)
+  const [metadata, setMetadata] = useState<SessionMetadata | null>(null)
+  const [detection, setDetection] = useState<DetectionResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [stream, setStream] = useState<MediaStream | null>(null)
+  const [running, setRunning] = useState(false)
+  const [facingMode, setFacingMode] = useState<FacingMode>('environment')
+  const [capabilities, setCapabilities] = useState<VideoCapabilities>({ torch: false })
+  const [torchEnabled, setTorchEnabled] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const [detectionEnabled, setDetectionEnabled] = useState(true)
+  const [targetLabel, setTargetLabel] = useState('bird')
+  const [minConfidence, setMinConfidence] = useState(0.4)
+  const [motionThreshold, setMotionThreshold] = useState(0.075)
+  const [sampleRateMs, setSampleRateMs] = useState(1200)
+
+  const localVideoRef = useRef<HTMLVideoElement | null>(null)
+  const detectionBusyRef = useRef(false)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+
+  const wakeLock = useWakeLock(running)
+  const cameraSupport = useMemo(() => evaluateCameraBrowserSupport(), [])
+  const supportedTargets = config?.targetInputGuidance.supportedTargets ?? [
+    'person',
+    'bird',
+    'car',
+    'truck',
+    'bus',
+    'bicycle',
+    'motorcycle',
+    'dog',
+    'cat',
+    'cell phone',
+    'chair',
+    'couch',
+    'potted plant',
+    'motion-only',
+  ]
+  const targetResolution = useMemo(
+    () => resolveTargetInput(targetLabel, supportedTargets),
+    [supportedTargets, targetLabel],
+  )
+  const zoomPresets = useMemo(() => buildZoomPresets(capabilities), [capabilities])
+
+  useEffect(() => {
+    if (!sessionId || !token) {
+      setError('Camera-Token oder Session-ID fehlen.')
+      return
+    }
+
+    void Promise.all([readConfig(), getSession(sessionId, token)])
+      .then(([loadedConfig, loadedSession]) => {
+        setConfig(loadedConfig)
+        setMetadata(loadedSession)
+        setDetection(loadedSession.latestDetection)
+        setTargetLabel(loadedConfig.defaults.targetLabel)
+        setMinConfidence(loadedConfig.defaults.minConfidence)
+        setMotionThreshold(loadedConfig.defaults.motionThreshold)
+      })
+      .catch((reason: unknown) => {
+        setError(reason instanceof Error ? reason.message : 'Camera-Ansicht konnte nicht initialisiert werden.')
+      })
+  }, [sessionId, token])
+
+  const stopStream = useEffectEvent(() => {
+    if (stream) {
+      for (const track of stream.getTracks()) {
+        track.stop()
+      }
+      setStream(null)
+    }
+
+    if (localVideoRef.current) {
+      localVideoRef.current.srcObject = null
+    }
+  })
+
+  const readCapabilities = useEffectEvent((nextStream: MediaStream) => {
+    const track = nextStream.getVideoTracks()[0]
+    const mediaCapabilities = track.getCapabilities?.() as ExtendedMediaTrackCapabilities | undefined
+    const mediaSettings = track.getSettings()
+    const zoomCapabilities = mediaCapabilities?.zoom
+
+    setCapabilities({
+      torch: Boolean(mediaCapabilities?.torch),
+      zoomMin: zoomCapabilities?.min,
+      zoomMax: zoomCapabilities?.max,
+      zoomStep: zoomCapabilities?.step,
+    })
+    setZoom(typeof mediaSettings.zoom === 'number' ? mediaSettings.zoom : (zoomCapabilities?.min ?? 1))
+  })
+
+  const startCamera = useEffectEvent(async (preferredFacing: FacingMode) => {
+    if (cameraSupport.status !== 'ok') {
+      setError(cameraSupport.detail)
+      return
+    }
+
+    try {
+      stopStream()
+      setError(null)
+
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          facingMode: { ideal: preferredFacing },
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          frameRate: { ideal: 30, max: 30 },
+        },
+      })
+
+      setStream(nextStream)
+      setRunning(true)
+      readCapabilities(nextStream)
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = nextStream
+      }
+    } catch (reason) {
+      setRunning(false)
+      setError(describeCameraAccessIssue(reason))
+    }
+  })
+
+  const handleEnvelope = useCallback((envelope: SignalingEnvelopeExtras) => {
+    if (envelope.type === 'session-state') {
+      const nextState = envelope.payload as Partial<SessionMetadata> & {
+        latestDetection?: DetectionResult | null
+      }
+      setMetadata((current) => {
+        if (!current) return current
+        return {
+          ...current,
+          ...nextState,
+          latestDetection: nextState.latestDetection ?? current.latestDetection,
+        }
+      })
+      if (nextState.latestDetection !== undefined) {
+        setDetection(nextState.latestDetection ?? null)
+      }
+    } else if (envelope.type === 'detection') {
+      setDetection(envelope.payload as DetectionResult)
+    } else if (envelope.type === 'error') {
+      setError(envelope.payload.message)
+    }
+  }, [])
+
+  const { lastError: signalingError } = useSignaling({
+    sessionId: sessionId ?? null,
+    role: 'camera',
+    token,
+    iceServers: config?.iceServers ?? null,
+    localStream: stream,
+    polite: false,
+    onEnvelope: handleEnvelope,
+  })
+
+  useEffect(() => {
+    return () => {
+      stopStream()
+      setRunning(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!running || !stream || !detectionEnabled || !sessionId || !token) {
+      return
+    }
+
+    let cancelled = false
+
+    const tick = async () => {
+      if (
+        cancelled ||
+        detectionBusyRef.current ||
+        !localVideoRef.current ||
+        localVideoRef.current.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+      ) {
+        return
+      }
+
+      detectionBusyRef.current = true
+
+      try {
+        const video = localVideoRef.current
+        const canvas = canvasRef.current ?? document.createElement('canvas')
+        canvasRef.current = canvas
+        canvas.width = 640
+        canvas.height = Math.max(360, Math.round((video.videoHeight / Math.max(video.videoWidth, 1)) * 640))
+        const context = canvas.getContext('2d')
+        if (!context) {
+          return
+        }
+
+        context.drawImage(video, 0, 0, canvas.width, canvas.height)
+        const blob = await new Promise<Blob | null>((resolve) => {
+          canvas.toBlob(resolve, 'image/jpeg', 0.82)
+        })
+
+        if (!blob) {
+          return
+        }
+
+        const formData = new FormData()
+        formData.set('target_label', targetLabel)
+        formData.set('min_confidence', String(minConfidence))
+        formData.set('motion_threshold', String(motionThreshold))
+        formData.set('file', blob, `frame-${Date.now()}.jpg`)
+
+        const response = await fetch(`${apiBaseUrl}/api/sessions/${sessionId}/detect`, {
+          method: 'POST',
+          headers: {
+            'x-session-token': token,
+          },
+          body: formData,
+        })
+
+        if (!response.ok) {
+          throw new Error('Detection-Request fehlgeschlagen.')
+        }
+
+        const nextDetection = (await response.json()) as DetectionResult
+        setDetection(nextDetection)
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : 'Detection konnte nicht ausgefuehrt werden.')
+      } finally {
+        detectionBusyRef.current = false
+      }
+    }
+
+    const timer = window.setInterval(() => {
+      void tick()
+    }, sampleRateMs)
+
+    void tick()
+
+    return () => {
+      cancelled = true
+      window.clearInterval(timer)
+    }
+  }, [detectionEnabled, minConfidence, motionThreshold, running, sampleRateMs, sessionId, stream, targetLabel, token])
+
+  async function applyTorch(enabled: boolean) {
+    if (!stream) {
+      return
+    }
+
+    const track = stream.getVideoTracks()[0]
+    const constraints: ExtendedMediaTrackConstraints = {
+      advanced: [{ torch: enabled }],
+    }
+    await track.applyConstraints(constraints)
+    setTorchEnabled(enabled)
+  }
+
+  async function applyZoomLevel(nextZoom: number) {
+    if (!stream) {
+      return
+    }
+
+    const track = stream.getVideoTracks()[0]
+    const constraints: ExtendedMediaTrackConstraints = {
+      advanced: [{ zoom: nextZoom }],
+    }
+    await track.applyConstraints(constraints)
+    setZoom(nextZoom)
+  }
+
+  async function handleFlipCamera() {
+    const nextFacing: FacingMode = facingMode === 'environment' ? 'user' : 'environment'
+    setFacingMode(nextFacing)
+    if (running) {
+      await startCamera(nextFacing)
+    }
+  }
+
+  function handleConfidenceChange(event: ChangeEvent<HTMLInputElement>) {
+    setMinConfidence(Number(event.target.value))
+  }
+
+  function handleMotionThresholdChange(event: ChangeEvent<HTMLInputElement>) {
+    setMotionThreshold(Number(event.target.value))
+  }
+
+  return (
+    <PageLayout
+      title="Camera"
+      subtitle="Android-Smartphone als Kamera-Sender mit Rueckkamera, Wake Lock und lokaler Detection."
+      backLink
+    >
+      {cameraSupport.status !== 'ok' ? (
+        <section className="grid-two">
+          <article className="glass-card">
+            <div className="card-header">
+              <div>
+                <h2>Kamera gesperrt</h2>
+                <p className="muted-copy">
+                  Der Browser blockiert die Kamera bereits vor dem Startversuch.
+                </p>
+              </div>
+              <StatusBadge active={false}>Blockiert</StatusBadge>
+            </div>
+            <p className="status-error camera-warning" data-testid="camera-warning">
+              {cameraSupport.detail}
+            </p>
+            <p className="muted-copy">
+              Aktueller Aufruf: <code>{currentPageOrigin()}</code>
+            </p>
+          </article>
+
+          <article className="glass-card">
+            <div className="card-header">
+              <div>
+                <h2>Viewer und API</h2>
+                <p className="muted-copy">
+                  Live-View, API und Signaling koennen trotzdem bereits erreichbar sein.
+                </p>
+              </div>
+              <StatusBadge active={Boolean(metadata)}>Pfad</StatusBadge>
+            </div>
+            <p className="muted-copy">
+              Der Fehler betrifft nur den Browser-Kamerazugriff. Viewer, Session-API und
+              Signaling koennen parallel bereits korrekt funktionieren.
+            </p>
+          </article>
+        </section>
+      ) : null}
+
+      <section className="grid-two">
+        <article className="glass-card video-card">
+          <div className="card-header">
+            <div>
+              <h2>Kamera</h2>
+              <p className="muted-copy">{running ? 'Stream aktiv' : 'Kamera noch nicht gestartet'}</p>
+            </div>
+            <StatusBadge active={running}>{wakeLock.isActive ? 'Wake Lock an' : 'Wake Lock aus'}</StatusBadge>
+          </div>
+          <video
+            ref={localVideoRef}
+            data-testid="camera-video"
+            className="video-frame"
+            autoPlay
+            playsInline
+            muted
+          />
+
+          <div className="control-row">
+            <button
+              className="primary-button"
+              data-testid="start-camera"
+              onClick={() => void startCamera(facingMode)}
+            >
+              {running ? 'Neu starten' : 'Kamera starten'}
+            </button>
+            <button className="secondary-button" onClick={() => void handleFlipCamera()}>
+              Kamera wechseln
+            </button>
+            <button
+              className="secondary-button"
+              onClick={() => {
+                stopStream()
+                setRunning(false)
+              }}
+            >
+              Stoppen
+            </button>
+          </div>
+        </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Detection</h2>
+              <p className="muted-copy">Bewegung + Objektalarm direkt im lokalen Stack.</p>
+            </div>
+            <StatusBadge active={detectionEnabled}>Analyser</StatusBadge>
+          </div>
+
+          <label className="field">
+            <span>Detection aktiv</span>
+            <input
+              type="checkbox"
+              data-testid="detection-enabled"
+              checked={detectionEnabled}
+              onChange={(event) => setDetectionEnabled(event.target.checked)}
+            />
+          </label>
+
+          <label className="field">
+            <span>Zielobjekt</span>
+            <input
+              type="text"
+              data-testid="target-label"
+              list="target-suggestions"
+              value={targetLabel}
+              onChange={(event) => setTargetLabel(event.target.value)}
+              placeholder="Taube auf dem Gelaender, person in yellow jacket, weisses Auto"
+            />
+          </label>
+
+          <datalist id="target-suggestions">
+            {supportedTargets.map((target) => (
+              <option key={target} value={target} />
+            ))}
+            {(config?.targetInputGuidance.examples ?? []).map((example) => (
+              <option key={example} value={example} />
+            ))}
+          </datalist>
+
+          <div className="target-guidance-card">
+            <div className="target-guidance-header">
+              <strong>Praezise Zielbeschreibung</strong>
+              <span className={`target-resolution ${targetResolution.confidence}`}>
+                {targetResolution.resolved ? `AI-Ziel: ${targetResolution.resolved}` : 'Bitte Ziel setzen'}
+              </span>
+            </div>
+            <p className="muted-copy">{targetResolution.note}</p>
+            <ul className="guidance-list">
+              {(config?.targetInputGuidance.instructions ?? []).map((instruction) => (
+                <li key={instruction}>{instruction}</li>
+              ))}
+            </ul>
+            <p className="muted-copy">
+              Gute Beispiele: {(config?.targetInputGuidance.examples ?? []).join(', ')}
+            </p>
+          </div>
+
+          {zoomPresets.length > 0 ? (
+            <div className="zoom-preset-card">
+              <div className="target-guidance-header">
+                <strong>Kamera-Zoom in 3 Stufen</strong>
+                <span className="target-resolution high">{zoom.toFixed(1)}x aktiv</span>
+              </div>
+              <p className="muted-copy">
+                Wenn der Android-Browser Zoom-Capabilities freigibt, koennen wir direkt im
+                Kamerastream zwischen drei Fokus-Stufen umschalten.
+              </p>
+              <div className="zoom-preset-row" data-testid="zoom-presets">
+                {zoomPresets.map((preset) => (
+                  <button
+                    key={`${preset.label}-${preset.value}`}
+                    className={
+                      Math.abs(zoom - preset.value) < 0.05 ? 'secondary-button zoom-preset active' : 'secondary-button zoom-preset'
+                    }
+                    disabled={!running}
+                    onClick={() => void applyZoomLevel(preset.value)}
+                  >
+                    Stufe {preset.label} · {preset.value.toFixed(1)}x
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          <label className="field">
+            <span>Confidence: {minConfidence.toFixed(2)}</span>
+            <input
+              data-testid="min-confidence"
+              type="range"
+              min="0.2"
+              max="0.95"
+              step="0.05"
+              value={minConfidence}
+              onChange={handleConfidenceChange}
+            />
+          </label>
+
+          <label className="field">
+            <span>Motion Threshold: {motionThreshold.toFixed(3)}</span>
+            <input
+              data-testid="motion-threshold"
+              type="range"
+              min="0.02"
+              max="0.2"
+              step="0.005"
+              value={motionThreshold}
+              onChange={handleMotionThresholdChange}
+            />
+          </label>
+
+          <label className="field">
+            <span>Analyse-Intervall</span>
+            <select
+              data-testid="sample-rate"
+              value={sampleRateMs}
+              onChange={(event) => setSampleRateMs(Number(event.target.value))}
+            >
+              <option value={800}>0.8s</option>
+              <option value={1200}>1.2s</option>
+              <option value={2000}>2.0s</option>
+            </select>
+          </label>
+
+          {capabilities.torch ? (
+            <button className="secondary-button" onClick={() => void applyTorch(!torchEnabled)}>
+              {torchEnabled ? 'Taschenlampe aus' : 'Taschenlampe an'}
+            </button>
+          ) : (
+            <p className="muted-copy">Torch ist auf diesem Android-Browser/Geraet nicht freigeschaltet.</p>
+          )}
+
+          {capabilities.zoomMin !== undefined && capabilities.zoomMax !== undefined ? (
+            <label className="field">
+              <span>Zoom: {zoom.toFixed(1)}x</span>
+              <input
+                type="range"
+                min={capabilities.zoomMin}
+                max={capabilities.zoomMax}
+                step={capabilities.zoomStep ?? 0.1}
+                value={zoom}
+                onChange={(event) => void applyZoomLevel(Number(event.target.value))}
+              />
+            </label>
+          ) : null}
+        </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Session</h2>
+              <p className="muted-copy">Der Viewer kann jederzeit aus dem gleichen LAN beitreten.</p>
+            </div>
+            <StatusBadge active={Boolean(metadata?.viewerConnected)}>Viewer</StatusBadge>
+          </div>
+          <p className="muted-copy">
+            Session-ID: <code>{sessionId}</code>
+          </p>
+          <p className="muted-copy">
+            Auf Android fuer laengere Nutzung den Bildschirm aktiv lassen und Akku-Sparmodus nach
+            Moeglichkeit deaktivieren.
+          </p>
+        </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Letztes Ergebnis</h2>
+              <p className="muted-copy">Objekt- und Bewegungsstatus in nahezu Echtzeit.</p>
+            </div>
+            <StatusBadge active={Boolean(detection?.triggered)}>Alert</StatusBadge>
+          </div>
+
+          {detection ? (
+            <AlertCard detection={detection} />
+          ) : (
+            <p className="muted-copy">Noch keine Analyse vorhanden.</p>
+          )}
+        </article>
+      </section>
+
+      <section className="grid-two">
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>LLM-Tokenverbrauch</h2>
+              <p className="muted-copy">
+                Diese Werte zeigen, ob der Detection-Pfad aktuell LLM-Tokens verbraucht.
+              </p>
+            </div>
+            <StatusBadge active={!metadata?.llmUsage.usedForMotionDetection}>Kosten</StatusBadge>
+          </div>
+          <LlmUsagePanel usage={metadata?.llmUsage} recommendation={config?.llmRecommendation} />
+        </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Vision Runtime</h2>
+              <p className="muted-copy">
+                Zeigt, ob der groessere Verifier und optional SAM 3 auf diesem Stack aktiv sein koennen.
+              </p>
+            </div>
+            <StatusBadge active={Boolean(config?.visionRuntime.reachable)}>Vision</StatusBadge>
+          </div>
+          <VisionRuntimePanel runtime={config?.visionRuntime} lastDetection={detection} />
+        </article>
+      </section>
+
+      {error || signalingError ? (
+        <p className="status-error">{error ?? signalingError}</p>
+      ) : null}
+    </PageLayout>
+  )
+}
+
+function PageLayout(props: { title: string; subtitle: string; backLink?: boolean; children: ReactNode }) {
+  return (
+    <main className="page-shell">
+      <header className="page-header">
+        <div>
+          <span className="eyebrow">Remote Camera AI</span>
+          <h1>{props.title}</h1>
+          <p>{props.subtitle}</p>
+        </div>
+        {props.backLink ? (
+          <Link className="secondary-button" to="/">
+            Zur Startseite
+          </Link>
+        ) : null}
+      </header>
+      {props.children}
+    </main>
+  )
+}
+
+function Metric(props: { title: string; value: string; detail: string }) {
+  return (
+    <div className="metric-card">
+      <p className="metric-title">{props.title}</p>
+      <p className="metric-value">{props.value}</p>
+      <p className="metric-detail">{props.detail}</p>
+    </div>
+  )
+}
+
+function AlertCard({ detection }: { detection: DetectionResult }) {
+  const matches = useMemo(() => {
+    if (detection.matchedObjects.length === 0) {
+      return 'Kein passendes Zielobjekt gefunden'
+    }
+
+    return detection.matchedObjects
+      .map((item) => {
+        const trackBits = item.trackId
+          ? ` · Track ${item.trackId} · Streak ${item.trackStreak ?? 0}${item.confirmed ? ' · bestaetigt' : ''}`
+          : ''
+        return `${item.label} ${(item.confidence * 100).toFixed(0)}%${trackBits}`
+      })
+      .join(', ')
+  }, [detection.matchedObjects])
+
+  return (
+    <div className="alert-card" data-testid="alert-card">
+      <div className="stat-grid">
+        <Stat label="Motion Score" value={detection.motionScore.toFixed(3)} />
+        <Stat label="Motion" value={detection.motionDetected ? 'Ja' : 'Nein'} />
+        <Stat label="Target" value={detection.targetLabel} />
+        <Stat label="Zeit" value={formatTimestamp(detection.createdAt)} />
+        <Stat label="Vision Modell" value={detection.visionModel} />
+        <Stat label="YOLO Lauf" value={detection.objectDetectionRan ? 'Ja' : 'Nein'} />
+        <Stat label="Bestaetigte Treffer" value={String(detection.confirmedMatchCount)} />
+        <Stat label="Tracking" value={detection.trackingMode} />
+        <Stat label="Praezisions-Check" value={detection.precisionVerifierRan ? (detection.precisionVerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Aus'} />
+        <Stat label="Verifier Modell" value={detection.precisionVerifierModel ?? 'n/a'} />
+        <Stat label="Verifier Modus" value={detection.precisionVerifierMode ?? 'n/a'} />
+        <Stat label="SAM 3" value={detection.sam3VerifierAvailable ? (detection.sam3VerifierRan ? (detection.sam3VerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Bereit') : 'Nicht aktiv'} />
+        <Stat label="SAM 3 Modell" value={detection.sam3VerifierModel ?? 'n/a'} />
+      </div>
+      <p className="muted-copy">
+        {detection.detectionMode} · {detection.objectDetectionReason} · {detection.trackConfirmationFrames} Frames bis Bestaetigung
+      </p>
+      <p className="muted-copy">
+        ROI-Refinement: {detection.regionRefinementUsed ? 'Ja' : 'Nein'}
+      </p>
+      {detection.precisionVerifierRan ? (
+        <p className="muted-copy">
+          Prompt: {detection.precisionVerifierPrompt ?? 'n/a'}
+        </p>
+      ) : null}
+      {detection.sam3VerifierAvailable ? (
+        <p className="muted-copy">
+          SAM 3: {detection.sam3VerifierMode ?? 'n/a'} · Prompt: {detection.sam3VerifierPrompt ?? 'n/a'}
+        </p>
+      ) : null}
+      <p className="muted-copy">{matches}</p>
+      {detection.snapshotUrl ? (
+        <img
+          className="snapshot-image"
+          data-testid="snapshot-image"
+          src={detection.snapshotUrl}
+          alt="Snapshot beim Detection-Trigger"
+        />
+      ) : null}
+    </div>
+  )
+}
+
+function Stat(props: { label: string; value: string }) {
+  return (
+    <div className="stat-card">
+      <span>{props.label}</span>
+      <strong>{props.value}</strong>
+    </div>
+  )
+}
+
+function StatusBadge(props: { active: boolean; children: string }) {
+  return (
+    <span className={props.active ? 'status-pill active' : 'status-pill'}>{props.children}</span>
+  )
+}
+
+function DiagnosticRow(props: { label: string; entry: DiagnosticEntry; testId?: string }) {
+  return (
+    <div className="diagnostic-row" data-testid={props.testId}>
+      <div>
+        <strong>{props.label}</strong>
+        <p className="muted-copy">{props.entry.detail}</p>
+      </div>
+      <span className={`diagnostic-badge ${props.entry.status}`}>
+        {formatDiagnosticStatus(props.entry.status)}
+      </span>
+    </div>
+  )
+}
+
+function LlmUsagePanel(props: {
+  usage?: LlmUsageSummary | null
+  recommendation?: LlmRecommendation | null
+}) {
+  const usage = props.usage
+  const recommendation = props.recommendation
+
+  if (!usage) {
+    return <p className="muted-copy">Noch keine LLM-Usage-Daten vorhanden.</p>
+  }
+
+  return (
+    <div className="alert-card" data-testid="llm-usage-panel">
+      <div className="stat-grid">
+        <Stat label="LLM Provider" value={recommendation?.provider ?? 'n/a'} />
+        <Stat label="LLM Modell" value={recommendation?.model ?? 'n/a'} />
+        <Stat label="Requests" value={String(usage.requestCount)} />
+        <Stat label="Prompt Tokens" value={String(usage.promptTokens)} />
+        <Stat label="Completion Tokens" value={String(usage.completionTokens)} />
+        <Stat label="Total Tokens" value={String(usage.totalTokens)} />
+      </div>
+      <div className="stat-grid">
+        <Stat label="Motion via LLM" value={usage.usedForMotionDetection ? 'Ja' : 'Nein'} />
+        <Stat label="Geschaetzte Kosten" value={`$${usage.estimatedCostUsd.toFixed(4)}`} />
+      </div>
+      <p className="muted-copy">{usage.note}</p>
+    </div>
+  )
+}
+
+function VisionRuntimePanel(props: {
+  runtime?: VisionRuntimeSummary | null
+  lastDetection?: DetectionResult | null
+}) {
+  const runtime = props.runtime
+  const lastDetection = props.lastDetection
+
+  if (!runtime) {
+    return <p className="muted-copy">Noch keine Vision-Runtime-Daten vorhanden.</p>
+  }
+
+  const lastSam3Status = !runtime.sam3VerifierEnabled
+    ? 'Deaktiviert'
+    : !runtime.sam3VerifierAvailable
+      ? 'Nicht aktiv'
+      : lastDetection?.sam3VerifierRan
+        ? lastDetection.sam3VerifierMatched
+          ? 'Treffer'
+          : 'Kein Treffer'
+        : 'Bereit'
+
+  return (
+    <div className="alert-card" data-testid="vision-runtime-panel">
+      <div className="stat-grid">
+        <Stat label="Vision API" value={runtime.reachable ? 'Erreichbar' : 'Nicht erreichbar'} />
+        <Stat label="Detektor" value={runtime.visionModel} />
+        <Stat label="YOLOE" value={runtime.precisionVerifierEnabled ? runtime.precisionVerifierModel : 'Aus'} />
+        <Stat label="SAM 3 Config" value={runtime.sam3VerifierEnabled ? runtime.sam3VerifierConfiguredModel : 'Aus'} />
+        <Stat label="SAM 3 Datei" value={runtime.sam3VerifierModelPresent ? 'Vorhanden' : 'Fehlt'} />
+        <Stat label="SAM 3 Runtime" value={runtime.sam3VerifierAvailable ? 'Aktiv moeglich' : 'Noch nicht aktiv'} />
+      </div>
+      <div className="stat-grid">
+        <Stat label="Letzter SAM 3 Lauf" value={lastSam3Status} />
+        <Stat label="Letzter SAM 3 Prompt" value={lastDetection?.sam3VerifierPrompt ?? 'n/a'} />
+      </div>
+      <p className="muted-copy">{runtime.note}</p>
+    </div>
+  )
+}
+
+function evaluateCameraBrowserSupport(): DiagnosticEntry {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') {
+    return {
+      status: 'warning',
+      detail: 'Browser-Kontext ist noch nicht verfuegbar.',
+    }
+  }
+
+  if (!window.isSecureContext) {
+    return {
+      status: 'error',
+      detail:
+        'Auf Android blockiert der Browser die Kamera hier, weil die Seite nicht in einem sicheren Kontext laeuft. Oeffnet die Kamera-Seite per HTTPS statt ueber http://192.168.178.39:3000.',
+    }
+  }
+
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return {
+      status: 'error',
+      detail: 'Dieser Browser stellt keine MediaDevices-Kamera-API bereit.',
+    }
+  }
+
+  return {
+    status: 'ok',
+    detail: 'Sicherer Kontext vorhanden, Kamera-API ist verfuegbar.',
+  }
+}
+
+async function probeTurnRelay(config: AppConfig | null): Promise<DiagnosticEntry> {
+  const turnUrls = config?.iceServers.flatMap((server) => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls]
+    return urls.filter((url): url is string => typeof url === 'string' && url.startsWith('turn'))
+  }) ?? []
+
+  if (turnUrls.length === 0) {
+    return {
+      status: 'warning',
+      detail: 'Kein TURN-Server konfiguriert. Im selben WLAN klappt WebRTC oft trotzdem direkt.',
+    }
+  }
+
+  return await new Promise<DiagnosticEntry>(async (resolve) => {
+    const peer = new RTCPeerConnection({
+      iceServers: config?.iceServers,
+      iceCandidatePoolSize: 1,
+    })
+    const relayCandidates = new Set<string>()
+    let settled = false
+
+    const finish = (result: DiagnosticEntry) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      window.clearTimeout(timer)
+      peer.close()
+      resolve(result)
+    }
+
+    peer.onicecandidate = (event) => {
+      const candidate = event.candidate?.candidate ?? ''
+      if (candidate.includes(' typ relay ')) {
+        relayCandidates.add(candidate)
+      }
+    }
+
+    peer.onicegatheringstatechange = () => {
+      if (peer.iceGatheringState !== 'complete') {
+        return
+      }
+
+      if (relayCandidates.size > 0) {
+        finish({
+          status: 'ok',
+          detail: 'TURN liefert Relay-Kandidaten. Fallback fuer schwierigere Netzpfade ist bereit.',
+        })
+        return
+      }
+
+      finish({
+        status: 'warning',
+        detail:
+          'TURN ist konfiguriert, aber dieser Browser hat gerade keine Relay-Kandidaten erhalten.',
+      })
+    }
+
+    const timer = window.setTimeout(() => {
+      if (relayCandidates.size > 0) {
+        finish({
+          status: 'ok',
+          detail: 'TURN liefert Relay-Kandidaten. Fallback fuer schwierigere Netzpfade ist bereit.',
+        })
+        return
+      }
+
+      finish({
+        status: 'warning',
+        detail:
+          'TURN ist konfiguriert, aber der Relay-Test lief in ein Timeout. Im gleichen WLAN ist das oft unkritisch.',
+      })
+    }, 5000)
+
+    try {
+      peer.createDataChannel('turn-probe')
+      const offer = await peer.createOffer()
+      await peer.setLocalDescription(offer)
+    } catch {
+      finish({
+        status: 'warning',
+        detail: 'TURN-Test konnte im Browser nicht initialisiert werden.',
+      })
+    }
+  })
+}
+
+function formatDiagnosticStatus(status: DiagnosticStatus) {
+  switch (status) {
+    case 'idle':
+      return 'Offen'
+    case 'running':
+      return 'Prueft'
+    case 'ok':
+      return 'OK'
+    case 'warning':
+      return 'Hinweis'
+    case 'error':
+      return 'Fehler'
+    default:
+      return status
+  }
+}
+
+function describeCameraAccessIssue(reason: unknown) {
+  if (!(reason instanceof DOMException)) {
+    return reason instanceof Error ? reason.message : 'Kamera konnte nicht gestartet werden.'
+  }
+
+  switch (reason.name) {
+    case 'NotAllowedError':
+      return 'Kamera-Zugriff verweigert. Bitte Browser-Kamerarechte freigeben und auf Android die Seite ueber HTTPS oeffnen.'
+    case 'NotFoundError':
+      return 'Keine passende Kamera gefunden.'
+    case 'NotReadableError':
+      return 'Die Kamera ist bereits durch eine andere App oder Browser-Instanz belegt.'
+    case 'OverconstrainedError':
+      return 'Die angeforderten Kamera-Einstellungen werden von diesem Geraet nicht unterstuetzt.'
+    case 'SecurityError':
+      return 'Der Browser blockiert den Kamera-Zugriff aus Sicherheitsgruenden. Im LAN ist dafuer in der Regel HTTPS erforderlich.'
+    default:
+      return reason.message || 'Kamera konnte nicht gestartet werden.'
+  }
+}
+
+function describeNetworkTarget(value?: string) {
+  if (!value) {
+    return 'PUBLIC_WEB_URL setzen'
+  }
+
+  try {
+    const url = new URL(value)
+    return `${url.hostname}:${url.port || (url.protocol === 'https:' ? '443' : '80')}`
+  } catch {
+    return value
+  }
+}
+
+function currentPageOrigin() {
+  if (typeof window === 'undefined') {
+    return apiBaseUrl
+  }
+
+  return window.location.origin
+}
+
+function formatTimestamp(value: string) {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleTimeString()
+}
+
+function toLocalRoute(absoluteUrl: string) {
+  const url = new URL(absoluteUrl)
+  return `${url.pathname}${url.search}`
+}
+
+export default App

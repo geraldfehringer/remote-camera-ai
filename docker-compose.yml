@@ -1,0 +1,146 @@
+services:
+  web:
+    build:
+      context: ./apps/web
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
+    ports:
+      - "0.0.0.0:3000:8080"
+      - "0.0.0.0:3443:8443"
+      - "0.0.0.0:443:8443"
+    volumes:
+      - ./certs/dev:/etc/nginx/certs:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  api:
+    build:
+      context: ./server
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8080
+      PUBLIC_WEB_URL: ${PUBLIC_WEB_URL:-http://macmini.local:3000}
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-http://macmini.local:8080}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://macmini.local:3000}
+      ICE_STUN_URLS: ${ICE_STUN_URLS:-stun:stun.l.google.com:19302}
+      ICE_TURN_URLS: ${ICE_TURN_URLS:-turn:macmini.local:3478?transport=udp,turn:macmini.local:3478?transport=tcp}
+      TURN_USERNAME: ${TURN_USERNAME:-remotecam}
+      TURN_PASSWORD: ${TURN_PASSWORD:-change-me-now}
+      VISION_SERVICE_URL: ${VISION_SERVICE_URL:-http://vision:8090}
+      VISION_TARGET_LABEL: ${VISION_TARGET_LABEL:-bird}
+      VISION_MIN_CONFIDENCE: ${VISION_MIN_CONFIDENCE:-0.4}
+      VISION_MOTION_THRESHOLD: ${VISION_MOTION_THRESHOLD:-0.075}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_MODEL: ${LLM_MODEL}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY:-}
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "0.0.0.0:8080:8080"
+    depends_on:
+      vision:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/api/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  vision:
+    build:
+      context: ./vision
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8090
+      VISION_MODEL: ${VISION_MODEL:-yolo26n.pt}
+      VISION_IMG_SIZE: ${VISION_IMG_SIZE:-640}
+      VISION_MOTION_FRAME_WIDTH: ${VISION_MOTION_FRAME_WIDTH:-320}
+      VISION_ENABLE_MOTION_GATE: ${VISION_ENABLE_MOTION_GATE:-true}
+      VISION_DETECT_EVERY_N_FRAMES: ${VISION_DETECT_EVERY_N_FRAMES:-8}
+      VISION_WARMUP_DETECT_FRAMES: ${VISION_WARMUP_DETECT_FRAMES:-2}
+      VISION_TRACK_CONFIRM_FRAMES: ${VISION_TRACK_CONFIRM_FRAMES:-2}
+      VISION_TRACK_MAX_MISSED_FRAMES: ${VISION_TRACK_MAX_MISSED_FRAMES:-12}
+      VISION_TRACK_IOU_THRESHOLD: ${VISION_TRACK_IOU_THRESHOLD:-0.35}
+      VISION_ROI_REFINE_ON_MOTION: ${VISION_ROI_REFINE_ON_MOTION:-true}
+      VISION_ROI_MAX_REGIONS: ${VISION_ROI_MAX_REGIONS:-2}
+      VISION_ROI_IMG_SIZE: ${VISION_ROI_IMG_SIZE:-960}
+      VISION_ROI_MIN_AREA_RATIO: ${VISION_ROI_MIN_AREA_RATIO:-0.002}
+      VISION_ROI_MARGIN_RATIO: ${VISION_ROI_MARGIN_RATIO:-0.15}
+      VISION_ENABLE_PRECISION_VERIFIER: ${VISION_ENABLE_PRECISION_VERIFIER:-true}
+      VISION_PRECISION_MODEL: ${VISION_PRECISION_MODEL:-yoloe-26x-seg.pt}
+      VISION_PRECISION_IMG_SIZE: ${VISION_PRECISION_IMG_SIZE:-960}
+      VISION_PRECISION_MIN_CONFIDENCE: ${VISION_PRECISION_MIN_CONFIDENCE:-0.2}
+      VISION_PRECISION_MAX_REGIONS: ${VISION_PRECISION_MAX_REGIONS:-3}
+      VISION_PRECISION_REGION_MARGIN_RATIO: ${VISION_PRECISION_REGION_MARGIN_RATIO:-0.18}
+      VISION_ENABLE_SAM3_VERIFIER: ${VISION_ENABLE_SAM3_VERIFIER:-true}
+      VISION_SAM3_MODEL: ${VISION_SAM3_MODEL:-/app/extra-models/sam3.pt}
+      VISION_SAM3_IMG_SIZE: ${VISION_SAM3_IMG_SIZE:-1008}
+      VISION_SAM3_MIN_CONFIDENCE: ${VISION_SAM3_MIN_CONFIDENCE:-0.25}
+      VISION_SAM3_MAX_REGIONS: ${VISION_SAM3_MAX_REGIONS:-2}
+      VISION_SAM3_TEXT_PROMPT_LIMIT: ${VISION_SAM3_TEXT_PROMPT_LIMIT:-3}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health').read()"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./vision/models:/app/extra-models:ro
+      - /home/app/.config/Ultralytics
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+  coturn:
+    image: coturn/coturn:4.6.3
+    command:
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+      - --fingerprint
+      - --realm=${TURN_REALM:-remote-camera-ai.local}
+      - --lt-cred-mech
+      - --user=${TURN_USERNAME:-remotecam}:${TURN_PASSWORD:-change-me-now}
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --external-ip=${TURN_EXTERNAL_IP:-127.0.0.1}
+      - --log-file=stdout
+    ports:
+      - "0.0.0.0:3478:3478/tcp"
+      - "0.0.0.0:3478:3478/udp"
+      - "0.0.0.0:49160-49200:49160-49200/udp"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  default:
+    name: remote-camera-ai
