@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { stubNarrate } from './providers/stub.js'
+import { geminiNarrate } from './providers/gemini.js'
 import { NarrationResponseSchema, systemPrompt, userPrompt, type NarrationResponse } from './prompts.js'
 
 export type LlmProvider = 'gemini' | 'claude' | 'openai' | 'together' | 'stub'
@@ -71,6 +72,10 @@ export async function narrateAlert(input: LlmNarrationInput): Promise<LlmNarrati
   switch (config.provider) {
     case 'stub':
       return stubNarrate(args)
+    case 'gemini': {
+      if (!config.apiKeys.google) throw new Error('GOOGLE_API_KEY missing')
+      return geminiNarrate(args, config.apiKeys.google, config.model, config.timeoutMs)
+    }
     default:
       throw new Error(`Provider ${config.provider} not implemented yet`)
   }
