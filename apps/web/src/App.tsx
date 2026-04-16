@@ -364,14 +364,16 @@ function HomePage() {
       }
     }
 
-    nextSignaling = nextApi.status === 'ok'
+    const configOk = config !== null
+    const healthOk = nextApi.status === 'ok'
+    nextSignaling = configOk && healthOk
       ? {
           status: 'ok',
-          detail: 'Signaling-Proxy /ws ist ueber den Frontend-Host erreichbar.',
+          detail: 'API erreichbar (Config + Health).',
         }
       : {
           status: 'error',
-          detail: 'Signaling ist nicht erreichbar, solange die API nicht antwortet.',
+          detail: 'API nicht erreichbar.',
         }
 
     try {

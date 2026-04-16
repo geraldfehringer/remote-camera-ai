@@ -375,8 +375,8 @@ const envSchema = z.object({
   VISION_TARGET_LABEL: z.string().default('bird'),
   VISION_MIN_CONFIDENCE: z.coerce.number().default(0.4),
   VISION_MOTION_THRESHOLD: z.coerce.number().default(0.075),
-  LLM_PROVIDER: z.string().min(1, 'LLM_PROVIDER must be set'),
-  LLM_MODEL: z.string().min(1, 'LLM_MODEL must be set'),
+  LLM_PROVIDER: z.enum(['gemini', 'claude', 'openai', 'together', 'stub']).default('gemini'),
+  LLM_MODEL: z.string().default('gemini-3-flash-preview'),
   SESSION_TTL_HOURS: z.coerce.number().default(SESSION_TTL_HOURS_DEFAULT),
 })
 
