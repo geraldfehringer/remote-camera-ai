@@ -3,20 +3,25 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import pathlib
 import re
 import threading
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 logger = logging.getLogger(__name__)
 
 import cv2
 import numpy as np
+import torch
 from fastapi import FastAPI, File, Form, UploadFile
 from pydantic import BaseModel, Field
 from ultralytics import YOLO, YOLOE
 from ultralytics.models.sam import SAM3SemanticPredictor
+
+from app.species import SpeciesClassifier, SpeciesCandidate as SpeciesCandidateDataclass
 
 MODEL_STORAGE_DIR = Path("/app/models")
 PRELOADED_MODELS = {
@@ -71,6 +76,21 @@ VISION_SAM3_IMG_SIZE = int(os.getenv("VISION_SAM3_IMG_SIZE", "1008"))
 VISION_SAM3_MIN_CONFIDENCE = float(os.getenv("VISION_SAM3_MIN_CONFIDENCE", "0.25"))
 VISION_SAM3_MAX_REGIONS = int(os.getenv("VISION_SAM3_MAX_REGIONS", "2"))
 VISION_SAM3_TEXT_PROMPT_LIMIT = int(os.getenv("VISION_SAM3_TEXT_PROMPT_LIMIT", "3"))
+VISION_ENABLE_SPECIES_HEAD = os.getenv("VISION_ENABLE_SPECIES_HEAD", "true").lower() == "true"
+VISION_SPECIES_MODEL = os.getenv("VISION_SPECIES_MODEL", "imageomics/bioclip-2")
+VISION_SPECIES_MIN_CONFIDENCE = float(os.getenv("VISION_SPECIES_MIN_CONFIDENCE", "0.05"))
+VISION_SPECIES_TARGETS = {
+    s.strip().lower()
+    for s in os.getenv("VISION_SPECIES_TARGETS", "bird,cat,squirrel").split(",")
+    if s.strip()
+}
+VISION_TORCH_THREADS = int(os.getenv("VISION_TORCH_THREADS", "4"))
+
+try:
+    torch.set_num_threads(VISION_TORCH_THREADS)
+    torch.set_num_interop_threads(max(1, VISION_TORCH_THREADS // 2))
+except Exception:
+    pass
 
 app = FastAPI(title="remote-camera-ai-vision", version="0.1.0")
 SAM3_LOCK = threading.Lock()
@@ -295,6 +315,13 @@ class DetectionObject(BaseModel):
     confirmed: bool = False
 
 
+class SpeciesCandidate(BaseModel):
+    scientificName: str
+    commonName: str
+    confidence: float
+    taxonomyPath: str
+
+
 class AnalysisResponse(BaseModel):
     targetLabel: str
     motionScore: float
@@ -320,6 +347,9 @@ class AnalysisResponse(BaseModel):
     sam3VerifierPrompt: str | None = None
     sam3VerifierMode: str | None = None
     matchedObjects: list[DetectionObject] = Field(default_factory=list)
+    speciesCandidates: list[SpeciesCandidate] = Field(default_factory=list)
+    speciesMode: Literal["unavailable", "disabled", "skipped", "error", "top3"] = "disabled"
+    speciesModel: str | None = None
     createdAt: str
 
 
@@ -362,6 +392,26 @@ def get_sam3_predictor() -> SAM3SemanticPredictor:
     )
     predictor.setup_model(model=None, verbose=False)
     return predictor
+
+
+_species_classifier: SpeciesClassifier | None = None
+_species_classifier_init_attempted = False
+
+
+def get_species_classifier() -> SpeciesClassifier | None:
+    global _species_classifier, _species_classifier_init_attempted
+    if not VISION_ENABLE_SPECIES_HEAD:
+        return None
+    if _species_classifier_init_attempted:
+        return _species_classifier
+    _species_classifier_init_attempted = True
+    catalogue_path = pathlib.Path(__file__).resolve().parent / "data" / "species_catalogue.json"
+    try:
+        _species_classifier = SpeciesClassifier(VISION_SPECIES_MODEL, catalogue_path)
+    except Exception:
+        logger.exception("species classifier initialization failed")
+        _species_classifier = None
+    return _species_classifier
 
 
 def normalize_text(raw_value: str) -> str:
@@ -1234,6 +1284,51 @@ async def analyze(
         else "always-on-object-detection"
     )
 
+    species_candidates: list[SpeciesCandidate] = []
+    species_mode: str = "disabled"
+    species_model_id: str | None = None
+
+    confirmed_items = [item for item in matched_objects if item.confirmed]
+    best_match = (
+        max(confirmed_items, key=lambda item: item.confidence)
+        if confirmed_items
+        else None
+    )
+    best_box: tuple[float, float, float, float] | None = (
+        (
+            best_match.bbox.x1,
+            best_match.bbox.y1,
+            best_match.bbox.x2,
+            best_match.bbox.y2,
+        )
+        if best_match is not None
+        else None
+    )
+    locale_hint = (
+        "de" if target_label.strip().lower() != normalized_target.lower() else "en"
+    )
+
+    if (
+        VISION_ENABLE_SPECIES_HEAD
+        and best_box is not None
+        and normalized_target in VISION_SPECIES_TARGETS
+    ):
+        classifier = get_species_classifier()
+        if classifier is None:
+            species_mode = "disabled"
+        else:
+            raw, mode = await asyncio.to_thread(
+                classifier.classify,
+                image,
+                best_box,
+                normalized_target,
+                VISION_SPECIES_MIN_CONFIDENCE,
+                locale_hint,
+            )
+            species_mode = mode
+            species_candidates = [SpeciesCandidate(**c.__dict__) for c in raw]
+            species_model_id = VISION_SPECIES_MODEL if classifier.available() else None
+
     return AnalysisResponse(
         targetLabel=normalized_target,
         motionScore=motion_analysis.score,
@@ -1265,6 +1360,9 @@ async def analyze(
         sam3VerifierPrompt=sam3_verifier_prompt,
         sam3VerifierMode=sam3_verifier_mode,
         matchedObjects=matched_objects,
+        speciesCandidates=species_candidates,
+        speciesMode=species_mode,
+        speciesModel=species_model_id,
         createdAt=np.datetime_as_string(np.datetime64("now"), timezone="UTC"),
     )
 
