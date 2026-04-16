@@ -246,6 +246,8 @@ async function readVisionRuntimeSummary(): Promise<VisionRuntimeSummary> {
 const MAX_EVENTS_PER_SESSION = 200
 const SESSION_TTL_HOURS_DEFAULT = 72
 const SWEEP_INTERVAL_MS = 10 * 60 * 1000
+const VISION_ALERT_COOLDOWN_MS = Number(process.env.VISION_ALERT_COOLDOWN_MS ?? 15_000)
+const VISION_ALERT_NOTRACK_COOLDOWN_MS = Number(process.env.VISION_ALERT_NOTRACK_COOLDOWN_MS ?? 60_000)
 
 type AlertEventLlm = {
   provider: string
@@ -289,6 +291,48 @@ function createEmptyCounters(): SessionCounters {
     alertsByTarget: {},
     llmBudgetSkipped: 0,
     llmFailed: 0,
+  }
+}
+
+function shouldMintAlert(
+  session: Session,
+  detection: { triggered: boolean; target: string; trackId?: string }
+): boolean {
+  if (!detection.triggered) return false
+  if (detection.target === 'motion-only') return true
+
+  const now = Date.now()
+  const events = session.events
+
+  if (detection.trackId) {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i]
+      if (ev.trackId === detection.trackId) {
+        if (now - new Date(ev.createdAt).getTime() < VISION_ALERT_COOLDOWN_MS) {
+          return false
+        }
+        break
+      }
+    }
+  } else {
+    for (let i = events.length - 1; i >= 0; i--) {
+      const ev = events[i]
+      if (ev.target === detection.target && !ev.trackId) {
+        if (now - new Date(ev.createdAt).getTime() < VISION_ALERT_NOTRACK_COOLDOWN_MS) {
+          return false
+        }
+        break
+      }
+    }
+  }
+
+  return true
+}
+
+function appendEvent(session: Session, event: AlertEvent): void {
+  session.events.push(event)
+  if (session.events.length > MAX_EVENTS_PER_SESSION) {
+    session.events.splice(0, session.events.length - MAX_EVENTS_PER_SESSION)
   }
 }
 
