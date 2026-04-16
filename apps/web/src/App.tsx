@@ -18,6 +18,7 @@ import {
   getSession,
   readConfig,
 } from './lib/api'
+import type { AlertEventDTO, SessionCountersDTO } from './lib/alerts'
 import type {
   AppConfig,
   DetectionResult,
@@ -632,6 +633,8 @@ function ViewerPage() {
   const [metadata, setMetadata] = useState<SessionMetadata | null>(null)
   const [detection, setDetection] = useState<DetectionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [alertEvents, setAlertEvents] = useState<AlertEventDTO[]>([])
+  const [counters, setCounters] = useState<SessionCountersDTO | null>(null)
 
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
 
@@ -656,6 +659,8 @@ function ViewerPage() {
     if (envelope.type === 'session-state') {
       const nextState = envelope.payload as Partial<SessionMetadata> & {
         latestDetection?: DetectionResult | null
+        counters?: SessionCountersDTO
+        events?: AlertEventDTO[]
       }
       setMetadata((current) => {
         if (!current) return current
@@ -668,8 +673,25 @@ function ViewerPage() {
       if (nextState.latestDetection !== undefined) {
         setDetection(nextState.latestDetection ?? null)
       }
+      if (nextState.counters) {
+        setCounters(nextState.counters)
+      }
+      if (Array.isArray(nextState.events)) {
+        setAlertEvents(nextState.events.slice(-50).reverse())
+      }
     } else if (envelope.type === 'detection') {
       setDetection(envelope.payload as DetectionResult)
+    } else if (envelope.type === 'alert') {
+      const dto = envelope.payload as AlertEventDTO
+      setAlertEvents((prev) => {
+        const idx = prev.findIndex((e) => e.id === dto.id)
+        if (idx >= 0) {
+          const next = prev.slice()
+          next[idx] = dto
+          return next
+        }
+        return [dto, ...prev].slice(0, 50)
+      })
     } else if (envelope.type === 'error') {
       setError(envelope.payload.message)
     }
@@ -742,6 +764,56 @@ function ViewerPage() {
       </section>
 
       <section className="grid-two">
+        <article className="glass-card alert-log" data-testid="alert-log">
+          <div className="card-header">
+            <div>
+              <h2>Alerts{counters ? ` (${counters.totalAlerts})` : ''}</h2>
+              <p className="muted-copy">
+                {counters
+                  ? `Erfasst: ${counters.totalDetections} · Ausgeloest: ${counters.totalTriggered}${
+                      counters.llmBudgetSkipped ? ` · LLM uebersprungen: ${counters.llmBudgetSkipped}` : ''
+                    }${counters.llmFailed ? ` · LLM fehlgeschlagen: ${counters.llmFailed}` : ''}`
+                  : 'Noch keine Zaehlerdaten.'}
+              </p>
+            </div>
+            <StatusBadge active={alertEvents.length > 0}>
+              {alertEvents.length > 0 ? `${alertEvents.length}` : 'Leer'}
+            </StatusBadge>
+          </div>
+          {alertEvents.length === 0 ? (
+            <p className="muted-copy">Noch keine Alerts.</p>
+          ) : (
+            <ul className="alert-log-list" data-testid="alert-log-list">
+              {alertEvents.map((ev) => (
+                <li
+                  key={ev.id}
+                  className={ev.suppressed ? 'alert-log-item suppressed' : 'alert-log-item'}
+                  data-testid="alert-log-item"
+                >
+                  {ev.snapshotUrl ? (
+                    <img
+                      className="alert-log-thumb"
+                      src={ev.snapshotUrl}
+                      alt={ev.target}
+                      loading="lazy"
+                    />
+                  ) : null}
+                  <div className="alert-log-body">
+                    <div className="alert-log-title">
+                      <strong>{ev.target}</strong>
+                      {ev.speciesCommonName ? <span> · {ev.speciesCommonName}</span> : null}
+                      <time className="muted-copy"> · {new Date(ev.createdAt).toLocaleTimeString()}</time>
+                    </div>
+                    <p className="muted-copy alert-log-summary">
+                      {ev.llm?.shortSummary ?? 'LLM laeuft...'}
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </article>
+
         <article className="glass-card">
           <div className="card-header">
             <div>
@@ -752,7 +824,9 @@ function ViewerPage() {
           </div>
           <LlmUsagePanel usage={metadata?.llmUsage} recommendation={config?.llmRecommendation} />
         </article>
+      </section>
 
+      <section className="grid-two">
         <article className="glass-card">
           <div className="card-header">
             <div>

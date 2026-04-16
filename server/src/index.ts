@@ -460,7 +460,9 @@ function sessionState(session: Session) {
     cameraConnected: Boolean(session.sockets.camera),
     viewerConnected: Boolean(session.sockets.viewer),
     latestDetection: session.latestDetection ?? null,
-    llmUsage: session.llmUsage
+    llmUsage: session.llmUsage,
+    counters: session.counters,
+    events: session.events.slice(-50)
   }
 }
 

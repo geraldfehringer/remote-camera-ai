@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { getSignalUrl } from '../lib/api'
+import type { AlertEventDTO } from '../lib/alerts'
 
 export type SignalingRole = 'camera' | 'viewer'
 
@@ -9,6 +10,7 @@ type SignalEnvelope =
   | { type: 'description'; payload: { sdp: RTCSessionDescriptionInit } }
   | { type: 'candidate'; payload: { candidate: RTCIceCandidateInit } }
   | { type: 'detection'; payload: unknown }
+  | { type: 'alert'; payload: AlertEventDTO }
   | { type: 'error'; payload: { message: string } }
 
 export type SignalingStatus =
@@ -23,6 +25,7 @@ export type SignalingStatus =
 export type SignalingEnvelopeExtras =
   | { type: 'session-state'; payload: Record<string, unknown> }
   | { type: 'detection'; payload: unknown }
+  | { type: 'alert'; payload: AlertEventDTO }
   | { type: 'error'; payload: { message: string } }
 
 export type UseSignalingParams = {
@@ -158,7 +161,7 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
     }
 
     const handleSignal = async (msg: SignalEnvelope) => {
-      if (msg.type === 'session-state' || msg.type === 'detection' || msg.type === 'error') {
+      if (msg.type === 'session-state' || msg.type === 'detection' || msg.type === 'error' || msg.type === 'alert') {
         envelopeRef.current?.(msg)
         if (msg.type === 'error') setLastError(msg.payload.message)
         return
