@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -376,7 +376,8 @@ const envSchema = z.object({
   VISION_MIN_CONFIDENCE: z.coerce.number().default(0.4),
   VISION_MOTION_THRESHOLD: z.coerce.number().default(0.075),
   LLM_PROVIDER: z.string().min(1, 'LLM_PROVIDER must be set'),
-  LLM_MODEL: z.string().min(1, 'LLM_MODEL must be set')
+  LLM_MODEL: z.string().min(1, 'LLM_MODEL must be set'),
+  SESSION_TTL_HOURS: z.coerce.number().default(SESSION_TTL_HOURS_DEFAULT),
 })
 
 const env = envSchema.parse(process.env)
@@ -571,6 +572,41 @@ async function loadSessions() {
       app.log.error({ err: error }, 'Failed to load persisted sessions')
     }
   }
+}
+
+async function expireSession(sessionId: string): Promise<void> {
+  const session = sessions.get(sessionId)
+  if (!session) return
+
+  for (const socket of Object.values(session.sockets)) {
+    try {
+      ;(socket as WebSocket).close(1012, 'session expired')
+    } catch {
+      /* ignore */
+    }
+  }
+  sessions.delete(sessionId)
+
+  const snapshotDir = path.join(snapshotsRoot, sessionId)
+  try {
+    await rm(snapshotDir, { recursive: true, force: true })
+  } catch (err) {
+    app.log.warn({ err, sessionId }, 'failed to remove snapshot dir during expire')
+  }
+
+  try {
+    const res = await fetch(`${env.VISION_SERVICE_URL}/sessions/${sessionId}`, {
+      method: 'DELETE',
+      signal: AbortSignal.timeout(3_000),
+    })
+    if (!res.ok) {
+      app.log.warn({ status: res.status, sessionId }, 'vision DELETE returned non-2xx')
+    }
+  } catch (err) {
+    app.log.warn({ err, sessionId }, 'vision DELETE call failed')
+  }
+
+  await persistSessions()
 }
 
 function broadcastState(session: Session) {
@@ -945,5 +981,21 @@ app.get('/ws', { websocket: true }, (socket, request) => {
     }
   })
 })
+
+const sessionTtlMs = env.SESSION_TTL_HOURS * 3_600_000
+const sweepInterval = setInterval(async () => {
+  const now = Date.now()
+  const expired: string[] = []
+  for (const [id, session] of sessions) {
+    if (now - new Date(session.createdAt).getTime() > sessionTtlMs) expired.push(id)
+  }
+  for (const id of expired) {
+    app.log.info({ sessionId: id }, 'expiring session (TTL)')
+    await expireSession(id)
+  }
+}, SWEEP_INTERVAL_MS)
+
+process.on('SIGTERM', () => clearInterval(sweepInterval))
+process.on('SIGINT', () => clearInterval(sweepInterval))
 
 await app.listen({ host: env.HOST, port: env.PORT })

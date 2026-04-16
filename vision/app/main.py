@@ -1267,3 +1267,10 @@ async def analyze(
         matchedObjects=matched_objects,
         createdAt=np.datetime_as_string(np.datetime64("now"), timezone="UTC"),
     )
+
+
+@app.delete("/sessions/{session_id}")
+def delete_session(session_id: str) -> dict[str, bool]:
+    existed = session_id in session_states
+    session_states.pop(session_id, None)
+    return {"ok": True, "existed": existed}
