@@ -9,8 +9,9 @@ import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
 import sensible from '@fastify/sensible'
 import websocket from '@fastify/websocket'
-import type WebSocket from 'ws'
+import WebSocket from 'ws'
 import { z } from 'zod'
+import { configureLlm, narrateAlert, type LlmNarrationInput } from './llm/index.js'
 
 type Role = 'camera' | 'viewer'
 
@@ -138,6 +139,9 @@ type LlmUsageSummary = {
   totalTokens: number
   estimatedCostUsd: number
   note: string
+  inputTokens: number
+  outputTokens: number
+  imageTokens: number
 }
 
 type VisionRuntimeSummary = {
@@ -200,7 +204,10 @@ function createZeroLlmUsageSummary(): LlmUsageSummary {
     totalTokens: 0,
     estimatedCostUsd: 0,
     note:
-      'Motion Detection laeuft aktuell vollstaendig lokal im Vision-Service. Dafuer werden keine LLM-Tokens verbraucht.'
+      'Motion Detection laeuft aktuell vollstaendig lokal im Vision-Service. Dafuer werden keine LLM-Tokens verbraucht.',
+    inputTokens: 0,
+    outputTokens: 0,
+    imageTokens: 0
   }
 }
 
@@ -377,6 +384,13 @@ const envSchema = z.object({
   VISION_MOTION_THRESHOLD: z.coerce.number().default(0.075),
   LLM_PROVIDER: z.enum(['gemini', 'claude', 'openai', 'together', 'stub']).default('gemini'),
   LLM_MODEL: z.string().default('gemini-3-flash-preview'),
+  LLM_MAX_CALLS_PER_HOUR: z.coerce.number().default(60),
+  LLM_MAX_CALLS_TOTAL_PER_SESSION: z.coerce.number().default(400),
+  LLM_TIMEOUT_MS: z.coerce.number().default(8_000),
+  GOOGLE_API_KEY: z.string().default(''),
+  ANTHROPIC_API_KEY: z.string().default(''),
+  OPENAI_API_KEY: z.string().default(''),
+  TOGETHER_API_KEY: z.string().default(''),
   SESSION_TTL_HOURS: z.coerce.number().default(SESSION_TTL_HOURS_DEFAULT),
 })
 
@@ -384,6 +398,18 @@ const env = envSchema.parse(process.env)
 const snapshotsRoot = path.resolve('/app/data/snapshots')
 const sessionsFile = path.resolve('/app/data/sessions.json')
 const sessions = new Map<string, Session>()
+
+configureLlm({
+  provider: env.LLM_PROVIDER,
+  model: env.LLM_MODEL,
+  timeoutMs: env.LLM_TIMEOUT_MS,
+  apiKeys: {
+    google: env.GOOGLE_API_KEY || undefined,
+    anthropic: env.ANTHROPIC_API_KEY || undefined,
+    openai: env.OPENAI_API_KEY || undefined,
+    together: env.TOGETHER_API_KEY || undefined,
+  },
+})
 
 const app = Fastify({
   logger: { level: env.NODE_ENV === 'production' ? 'info' : 'debug' },
@@ -493,7 +519,10 @@ async function loadSessions() {
               completionTokens: z.number(),
               totalTokens: z.number(),
               estimatedCostUsd: z.number(),
-              note: z.string()
+              note: z.string(),
+              inputTokens: z.number().optional(),
+              outputTokens: z.number().optional(),
+              imageTokens: z.number().optional()
             })
             .optional(),
           events: z.array(z.any()).optional(),
@@ -557,7 +586,14 @@ async function loadSessions() {
         createdAt: raw.createdAt,
         cameraToken: raw.cameraToken,
         viewerToken: raw.viewerToken,
-        llmUsage: raw.llmUsage ?? createZeroLlmUsageSummary(),
+        llmUsage: raw.llmUsage
+          ? {
+              ...raw.llmUsage,
+              inputTokens: raw.llmUsage.inputTokens ?? 0,
+              outputTokens: raw.llmUsage.outputTokens ?? 0,
+              imageTokens: raw.llmUsage.imageTokens ?? 0
+            }
+          : createZeroLlmUsageSummary(),
         latestDetection,
         events: Array.isArray(raw.events) ? (raw.events as AlertEvent[]) : [],
         counters: (raw.counters as SessionCounters | undefined) ?? createEmptyCounters(),
@@ -637,6 +673,77 @@ function broadcastError(session: Session, message: string) {
   if (session.sockets.viewer) {
     send(session.sockets.viewer, payload)
   }
+}
+
+function broadcastAlert(session: Session, event: AlertEvent): void {
+  for (const socket of Object.values(session.sockets)) {
+    if (!socket) continue
+    if ((socket as WebSocket).readyState !== WebSocket.OPEN) continue
+    try {
+      ;(socket as WebSocket).send(JSON.stringify({ type: 'alert', payload: event }))
+    } catch (err) {
+      app.log.warn({ err, sessionId: session.id }, 'alert broadcast send failed')
+    }
+  }
+}
+
+function localeFromTarget(rawTarget: string, normalized: string): 'de' | 'en' {
+  return rawTarget.toLowerCase() !== normalized.toLowerCase() ? 'de' : 'en'
+}
+
+async function maybeNarrate(session: Session, event: AlertEvent, rawTarget: string): Promise<void> {
+  const now = Date.now()
+  session.llmCallTimestamps = session.llmCallTimestamps.filter((t) => now - t < 3_600_000)
+  if (
+    session.llmCallTimestamps.length >= env.LLM_MAX_CALLS_PER_HOUR ||
+    session.llmCallsTotal >= env.LLM_MAX_CALLS_TOTAL_PER_SESSION
+  ) {
+    session.counters.llmBudgetSkipped += 1
+    await persistSessions()
+    return
+  }
+  session.llmCallTimestamps.push(now)
+  session.llmCallsTotal += 1
+
+  const snapshotPath = path.join(snapshotsRoot, session.id, path.basename(event.snapshotUrl))
+  const input: LlmNarrationInput = {
+    event: {
+      id: event.id,
+      target: event.target,
+      species: event.species,
+      speciesCommonName: event.speciesCommonName,
+      confidence: event.confidence,
+      motionScore: event.motionScore,
+      trackId: event.trackId,
+    },
+    snapshotPath,
+    locale: localeFromTarget(rawTarget, event.target),
+  }
+
+  try {
+    const result = await narrateAlert(input)
+    event.llm = {
+      provider: result.provider,
+      model: result.model,
+      shortSummary: result.response.shortSummary,
+      threatLevel: result.response.threatLevel,
+      suppressed: result.response.suppressAsFalsePositive,
+      ranAt: new Date().toISOString(),
+    }
+    event.suppressed = result.response.suppressAsFalsePositive
+    session.llmUsage.inputTokens += result.usage.inputTokens ?? 0
+    session.llmUsage.outputTokens += result.usage.outputTokens ?? 0
+    session.llmUsage.imageTokens += result.usage.imageTokens ?? 0
+    if (event.suppressed) {
+      session.counters.totalAlerts = Math.max(0, session.counters.totalAlerts - 1)
+    }
+  } catch (err) {
+    session.counters.llmFailed += 1
+    app.log.warn({ err, sessionId: session.id, eventId: event.id }, 'LLM narration failed')
+  }
+
+  broadcastAlert(session, event)
+  await persistSessions()
 }
 
 function parseCsv(value: string) {
@@ -857,12 +964,10 @@ app.post('/api/sessions/:sessionId/detect', async (request) => {
 
   const buffer = await file.toBuffer()
   const fileName = file.filename || `snapshot-${Date.now()}.jpg`
+  const rawTarget = multipartValue(file.fields, 'target_label', env.VISION_TARGET_LABEL)
   const formData = new FormData()
   formData.set('session_id', params.sessionId)
-  formData.set(
-    'target_label',
-    multipartValue(file.fields, 'target_label', env.VISION_TARGET_LABEL)
-  )
+  formData.set('target_label', rawTarget)
   formData.set(
     'min_confidence',
     multipartValue(file.fields, 'min_confidence', String(env.VISION_MIN_CONFIDENCE))
@@ -916,7 +1021,48 @@ app.post('/api/sessions/:sessionId/detect', async (request) => {
   }
 
   session.latestDetection = result
-  await persistSessions()
+
+  session.counters.totalDetections += 1
+  if (analysis.triggered) session.counters.totalTriggered += 1
+
+  const topMatch = analysis.matchedObjects?.[0]
+  const trackIdStr =
+    topMatch && typeof topMatch.trackId === 'number' ? String(topMatch.trackId) : undefined
+  const normalizedTarget = analysis.targetLabel ?? rawTarget
+
+  const mintDecision = shouldMintAlert(session, {
+    triggered: !!analysis.triggered,
+    target: normalizedTarget,
+    trackId: trackIdStr,
+  })
+
+  if (mintDecision) {
+    const event: AlertEvent = {
+      id: randomUUID(),
+      createdAt: new Date().toISOString(),
+      triggeredAt: analysis.createdAt ?? new Date().toISOString(),
+      target: normalizedTarget,
+      species: undefined,
+      speciesCommonName: undefined,
+      speciesConfidence: undefined,
+      confidence: topMatch?.confidence ?? 0,
+      trackId: trackIdStr,
+      snapshotUrl: snapshotUrl ?? '',
+      motionScore: analysis.motionScore ?? 0,
+      suppressed: false,
+    }
+    appendEvent(session, event)
+    session.counters.totalAlerts += 1
+    session.counters.alertsByTarget[event.target] =
+      (session.counters.alertsByTarget[event.target] ?? 0) + 1
+
+    broadcastAlert(session, event)
+    await persistSessions()
+    void maybeNarrate(session, event, rawTarget)
+  } else {
+    await persistSessions()
+  }
+
   broadcastState(session)
 
   if (session.sockets.camera) {
