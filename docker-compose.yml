@@ -42,6 +42,10 @@ services:
       VISION_MOTION_THRESHOLD: ${VISION_MOTION_THRESHOLD:-0.075}
       LLM_PROVIDER: ${LLM_PROVIDER}
       LLM_MODEL: ${LLM_MODEL}
+      LLM_MAX_CALLS_PER_HOUR: ${LLM_MAX_CALLS_PER_HOUR:-60}
+      LLM_MAX_CALLS_TOTAL_PER_SESSION: ${LLM_MAX_CALLS_TOTAL_PER_SESSION:-400}
+      LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-8000}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-72}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -100,6 +104,11 @@ services:
       VISION_SAM3_MIN_CONFIDENCE: ${VISION_SAM3_MIN_CONFIDENCE:-0.25}
       VISION_SAM3_MAX_REGIONS: ${VISION_SAM3_MAX_REGIONS:-2}
       VISION_SAM3_TEXT_PROMPT_LIMIT: ${VISION_SAM3_TEXT_PROMPT_LIMIT:-3}
+      VISION_ENABLE_SPECIES_HEAD: ${VISION_ENABLE_SPECIES_HEAD:-true}
+      VISION_SPECIES_MODEL: ${VISION_SPECIES_MODEL:-imageomics/bioclip-2}
+      VISION_SPECIES_MIN_CONFIDENCE: ${VISION_SPECIES_MIN_CONFIDENCE:-0.05}
+      VISION_SPECIES_TARGETS: ${VISION_SPECIES_TARGETS:-bird,cat,squirrel}
+      VISION_TORCH_THREADS: ${VISION_TORCH_THREADS:-4}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8090/health').read()"]
       interval: 20s
@@ -112,6 +121,7 @@ services:
       - /tmp
     volumes:
       - ./vision/models:/app/extra-models:ro
+      - vision-models:/models
       - /home/app/.config/Ultralytics
     security_opt:
       - no-new-privileges:true
@@ -140,6 +150,9 @@ services:
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+
+volumes:
+  vision-models:
 
 networks:
   default:
