@@ -1,0 +1,1378 @@
+[
+  {
+    "scientificName": "Columba livia",
+    "commonNameEn": "Rock Pigeon",
+    "commonNameDe": "Felsentaube",
+    "family": "Columbidae",
+    "order": "Columbiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Columba palumbus",
+    "commonNameEn": "Common Wood Pigeon",
+    "commonNameDe": "Ringeltaube",
+    "family": "Columbidae",
+    "order": "Columbiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Columba oenas",
+    "commonNameEn": "Stock Dove",
+    "commonNameDe": "Hohltaube",
+    "family": "Columbidae",
+    "order": "Columbiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Streptopelia decaocto",
+    "commonNameEn": "Eurasian Collared Dove",
+    "commonNameDe": "Türkentaube",
+    "family": "Columbidae",
+    "order": "Columbiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Streptopelia turtur",
+    "commonNameEn": "European Turtle Dove",
+    "commonNameDe": "Turteltaube",
+    "family": "Columbidae",
+    "order": "Columbiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Passer domesticus",
+    "commonNameEn": "House Sparrow",
+    "commonNameDe": "Haussperling",
+    "family": "Passeridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Passer montanus",
+    "commonNameEn": "Eurasian Tree Sparrow",
+    "commonNameDe": "Feldsperling",
+    "family": "Passeridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Parus major",
+    "commonNameEn": "Great Tit",
+    "commonNameDe": "Kohlmeise",
+    "family": "Paridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Cyanistes caeruleus",
+    "commonNameEn": "Eurasian Blue Tit",
+    "commonNameDe": "Blaumeise",
+    "family": "Paridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Periparus ater",
+    "commonNameEn": "Coal Tit",
+    "commonNameDe": "Tannenmeise",
+    "family": "Paridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Poecile palustris",
+    "commonNameEn": "Marsh Tit",
+    "commonNameDe": "Sumpfmeise",
+    "family": "Paridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Poecile montanus",
+    "commonNameEn": "Willow Tit",
+    "commonNameDe": "Weidenmeise",
+    "family": "Paridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Lophophanes cristatus",
+    "commonNameEn": "European Crested Tit",
+    "commonNameDe": "Haubenmeise",
+    "family": "Paridae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Aegithalos caudatus",
+    "commonNameEn": "Long-tailed Tit",
+    "commonNameDe": "Schwanzmeise",
+    "family": "Aegithalidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Fringilla coelebs",
+    "commonNameEn": "Common Chaffinch",
+    "commonNameDe": "Buchfink",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Fringilla montifringilla",
+    "commonNameEn": "Brambling",
+    "commonNameDe": "Bergfink",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Chloris chloris",
+    "commonNameEn": "European Greenfinch",
+    "commonNameDe": "Grünfink",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Carduelis carduelis",
+    "commonNameEn": "European Goldfinch",
+    "commonNameDe": "Stieglitz",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Spinus spinus",
+    "commonNameEn": "Eurasian Siskin",
+    "commonNameDe": "Erlenzeisig",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Linaria cannabina",
+    "commonNameEn": "Common Linnet",
+    "commonNameDe": "Bluthänfling",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Pyrrhula pyrrhula",
+    "commonNameEn": "Eurasian Bullfinch",
+    "commonNameDe": "Gimpel",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Coccothraustes coccothraustes",
+    "commonNameEn": "Hawfinch",
+    "commonNameDe": "Kernbeißer",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Loxia curvirostra",
+    "commonNameEn": "Red Crossbill",
+    "commonNameDe": "Fichtenkreuzschnabel",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Serinus serinus",
+    "commonNameEn": "European Serin",
+    "commonNameDe": "Girlitz",
+    "family": "Fringillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Turdus merula",
+    "commonNameEn": "Common Blackbird",
+    "commonNameDe": "Amsel",
+    "family": "Turdidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Turdus philomelos",
+    "commonNameEn": "Song Thrush",
+    "commonNameDe": "Singdrossel",
+    "family": "Turdidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Turdus viscivorus",
+    "commonNameEn": "Mistle Thrush",
+    "commonNameDe": "Misteldrossel",
+    "family": "Turdidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Turdus pilaris",
+    "commonNameEn": "Fieldfare",
+    "commonNameDe": "Wacholderdrossel",
+    "family": "Turdidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Turdus iliacus",
+    "commonNameEn": "Redwing",
+    "commonNameDe": "Rotdrossel",
+    "family": "Turdidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Erithacus rubecula",
+    "commonNameEn": "European Robin",
+    "commonNameDe": "Rotkehlchen",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Luscinia megarhynchos",
+    "commonNameEn": "Common Nightingale",
+    "commonNameDe": "Nachtigall",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Luscinia luscinia",
+    "commonNameEn": "Thrush Nightingale",
+    "commonNameDe": "Sprosser",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Phoenicurus phoenicurus",
+    "commonNameEn": "Common Redstart",
+    "commonNameDe": "Gartenrotschwanz",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Phoenicurus ochruros",
+    "commonNameEn": "Black Redstart",
+    "commonNameDe": "Hausrotschwanz",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Saxicola rubicola",
+    "commonNameEn": "European Stonechat",
+    "commonNameDe": "Schwarzkehlchen",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Oenanthe oenanthe",
+    "commonNameEn": "Northern Wheatear",
+    "commonNameDe": "Steinschmätzer",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Muscicapa striata",
+    "commonNameEn": "Spotted Flycatcher",
+    "commonNameDe": "Grauschnäpper",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Ficedula hypoleuca",
+    "commonNameEn": "European Pied Flycatcher",
+    "commonNameDe": "Trauerschnäpper",
+    "family": "Muscicapidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Corvus corone",
+    "commonNameEn": "Carrion Crow",
+    "commonNameDe": "Rabenkrähe",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Corvus cornix",
+    "commonNameEn": "Hooded Crow",
+    "commonNameDe": "Nebelkrähe",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Corvus frugilegus",
+    "commonNameEn": "Rook",
+    "commonNameDe": "Saatkrähe",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Corvus monedula",
+    "commonNameEn": "Western Jackdaw",
+    "commonNameDe": "Dohle",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Corvus corax",
+    "commonNameEn": "Common Raven",
+    "commonNameDe": "Kolkrabe",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Pica pica",
+    "commonNameEn": "Eurasian Magpie",
+    "commonNameDe": "Elster",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Garrulus glandarius",
+    "commonNameEn": "Eurasian Jay",
+    "commonNameDe": "Eichelhäher",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Nucifraga caryocatactes",
+    "commonNameEn": "Spotted Nutcracker",
+    "commonNameDe": "Tannenhäher",
+    "family": "Corvidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Dendrocopos major",
+    "commonNameEn": "Great Spotted Woodpecker",
+    "commonNameDe": "Buntspecht",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Dendrocoptes medius",
+    "commonNameEn": "Middle Spotted Woodpecker",
+    "commonNameDe": "Mittelspecht",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Dryobates minor",
+    "commonNameEn": "Lesser Spotted Woodpecker",
+    "commonNameDe": "Kleinspecht",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Picus viridis",
+    "commonNameEn": "European Green Woodpecker",
+    "commonNameDe": "Grünspecht",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Picus canus",
+    "commonNameEn": "Grey-headed Woodpecker",
+    "commonNameDe": "Grauspecht",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Dryocopus martius",
+    "commonNameEn": "Black Woodpecker",
+    "commonNameDe": "Schwarzspecht",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Jynx torquilla",
+    "commonNameEn": "Eurasian Wryneck",
+    "commonNameDe": "Wendehals",
+    "family": "Picidae",
+    "order": "Piciformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Buteo buteo",
+    "commonNameEn": "Common Buzzard",
+    "commonNameDe": "Mäusebussard",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Accipiter nisus",
+    "commonNameEn": "Eurasian Sparrowhawk",
+    "commonNameDe": "Sperber",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Accipiter gentilis",
+    "commonNameEn": "Northern Goshawk",
+    "commonNameDe": "Habicht",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Milvus milvus",
+    "commonNameEn": "Red Kite",
+    "commonNameDe": "Rotmilan",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Milvus migrans",
+    "commonNameEn": "Black Kite",
+    "commonNameDe": "Schwarzmilan",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Pandion haliaetus",
+    "commonNameEn": "Osprey",
+    "commonNameDe": "Fischadler",
+    "family": "Pandionidae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Haliaeetus albicilla",
+    "commonNameEn": "White-tailed Eagle",
+    "commonNameDe": "Seeadler",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Aquila chrysaetos",
+    "commonNameEn": "Golden Eagle",
+    "commonNameDe": "Steinadler",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Circus aeruginosus",
+    "commonNameEn": "Western Marsh Harrier",
+    "commonNameDe": "Rohrweihe",
+    "family": "Accipitridae",
+    "order": "Accipitriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Falco tinnunculus",
+    "commonNameEn": "Common Kestrel",
+    "commonNameDe": "Turmfalke",
+    "family": "Falconidae",
+    "order": "Falconiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Falco peregrinus",
+    "commonNameEn": "Peregrine Falcon",
+    "commonNameDe": "Wanderfalke",
+    "family": "Falconidae",
+    "order": "Falconiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Falco subbuteo",
+    "commonNameEn": "Eurasian Hobby",
+    "commonNameDe": "Baumfalke",
+    "family": "Falconidae",
+    "order": "Falconiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Falco columbarius",
+    "commonNameEn": "Merlin",
+    "commonNameDe": "Merlin",
+    "family": "Falconidae",
+    "order": "Falconiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Strix aluco",
+    "commonNameEn": "Tawny Owl",
+    "commonNameDe": "Waldkauz",
+    "family": "Strigidae",
+    "order": "Strigiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Athene noctua",
+    "commonNameEn": "Little Owl",
+    "commonNameDe": "Steinkauz",
+    "family": "Strigidae",
+    "order": "Strigiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Asio otus",
+    "commonNameEn": "Long-eared Owl",
+    "commonNameDe": "Waldohreule",
+    "family": "Strigidae",
+    "order": "Strigiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Asio flammeus",
+    "commonNameEn": "Short-eared Owl",
+    "commonNameDe": "Sumpfohreule",
+    "family": "Strigidae",
+    "order": "Strigiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Bubo bubo",
+    "commonNameEn": "Eurasian Eagle-Owl",
+    "commonNameDe": "Uhu",
+    "family": "Strigidae",
+    "order": "Strigiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Tyto alba",
+    "commonNameEn": "Barn Owl",
+    "commonNameDe": "Schleiereule",
+    "family": "Tytonidae",
+    "order": "Strigiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Anas platyrhynchos",
+    "commonNameEn": "Mallard",
+    "commonNameDe": "Stockente",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Anas crecca",
+    "commonNameEn": "Eurasian Teal",
+    "commonNameDe": "Krickente",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Mareca strepera",
+    "commonNameEn": "Gadwall",
+    "commonNameDe": "Schnatterente",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Aythya fuligula",
+    "commonNameEn": "Tufted Duck",
+    "commonNameDe": "Reiherente",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Aythya ferina",
+    "commonNameEn": "Common Pochard",
+    "commonNameDe": "Tafelente",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Cygnus olor",
+    "commonNameEn": "Mute Swan",
+    "commonNameDe": "Höckerschwan",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Cygnus cygnus",
+    "commonNameEn": "Whooper Swan",
+    "commonNameDe": "Singschwan",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Branta canadensis",
+    "commonNameEn": "Canada Goose",
+    "commonNameDe": "Kanadagans",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Anser anser",
+    "commonNameEn": "Greylag Goose",
+    "commonNameDe": "Graugans",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Tadorna tadorna",
+    "commonNameEn": "Common Shelduck",
+    "commonNameDe": "Brandgans",
+    "family": "Anatidae",
+    "order": "Anseriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Ardea cinerea",
+    "commonNameEn": "Grey Heron",
+    "commonNameDe": "Graureiher",
+    "family": "Ardeidae",
+    "order": "Pelecaniformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Ardea alba",
+    "commonNameEn": "Great Egret",
+    "commonNameDe": "Silberreiher",
+    "family": "Ardeidae",
+    "order": "Pelecaniformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Egretta garzetta",
+    "commonNameEn": "Little Egret",
+    "commonNameDe": "Seidenreiher",
+    "family": "Ardeidae",
+    "order": "Pelecaniformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Nycticorax nycticorax",
+    "commonNameEn": "Black-crowned Night Heron",
+    "commonNameDe": "Nachtreiher",
+    "family": "Ardeidae",
+    "order": "Pelecaniformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Ciconia ciconia",
+    "commonNameEn": "White Stork",
+    "commonNameDe": "Weißstorch",
+    "family": "Ciconiidae",
+    "order": "Ciconiiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Chroicocephalus ridibundus",
+    "commonNameEn": "Black-headed Gull",
+    "commonNameDe": "Lachmöwe",
+    "family": "Laridae",
+    "order": "Charadriiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Larus canus",
+    "commonNameEn": "Common Gull",
+    "commonNameDe": "Sturmmöwe",
+    "family": "Laridae",
+    "order": "Charadriiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Larus argentatus",
+    "commonNameEn": "European Herring Gull",
+    "commonNameDe": "Silbermöwe",
+    "family": "Laridae",
+    "order": "Charadriiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Larus michahellis",
+    "commonNameEn": "Yellow-legged Gull",
+    "commonNameDe": "Mittelmeermöwe",
+    "family": "Laridae",
+    "order": "Charadriiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Fulica atra",
+    "commonNameEn": "Eurasian Coot",
+    "commonNameDe": "Blässhuhn",
+    "family": "Rallidae",
+    "order": "Gruiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Gallinula chloropus",
+    "commonNameEn": "Common Moorhen",
+    "commonNameDe": "Teichhuhn",
+    "family": "Rallidae",
+    "order": "Gruiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Rallus aquaticus",
+    "commonNameEn": "Water Rail",
+    "commonNameDe": "Wasserralle",
+    "family": "Rallidae",
+    "order": "Gruiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Phasianus colchicus",
+    "commonNameEn": "Common Pheasant",
+    "commonNameDe": "Fasan",
+    "family": "Phasianidae",
+    "order": "Galliformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Perdix perdix",
+    "commonNameEn": "Grey Partridge",
+    "commonNameDe": "Rebhuhn",
+    "family": "Phasianidae",
+    "order": "Galliformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Coturnix coturnix",
+    "commonNameEn": "Common Quail",
+    "commonNameDe": "Wachtel",
+    "family": "Phasianidae",
+    "order": "Galliformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Motacilla alba",
+    "commonNameEn": "White Wagtail",
+    "commonNameDe": "Bachstelze",
+    "family": "Motacillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Motacilla flava",
+    "commonNameEn": "Western Yellow Wagtail",
+    "commonNameDe": "Schafstelze",
+    "family": "Motacillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Motacilla cinerea",
+    "commonNameEn": "Grey Wagtail",
+    "commonNameDe": "Gebirgsstelze",
+    "family": "Motacillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Anthus trivialis",
+    "commonNameEn": "Tree Pipit",
+    "commonNameDe": "Baumpieper",
+    "family": "Motacillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Anthus pratensis",
+    "commonNameEn": "Meadow Pipit",
+    "commonNameDe": "Wiesenpieper",
+    "family": "Motacillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Sturnus vulgaris",
+    "commonNameEn": "Common Starling",
+    "commonNameDe": "Star",
+    "family": "Sturnidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Sylvia atricapilla",
+    "commonNameEn": "Eurasian Blackcap",
+    "commonNameDe": "Mönchsgrasmücke",
+    "family": "Sylviidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Sylvia borin",
+    "commonNameEn": "Garden Warbler",
+    "commonNameDe": "Gartengrasmücke",
+    "family": "Sylviidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Curruca communis",
+    "commonNameEn": "Common Whitethroat",
+    "commonNameDe": "Dorngrasmücke",
+    "family": "Sylviidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Curruca curruca",
+    "commonNameEn": "Lesser Whitethroat",
+    "commonNameDe": "Klappergrasmücke",
+    "family": "Sylviidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Phylloscopus collybita",
+    "commonNameEn": "Common Chiffchaff",
+    "commonNameDe": "Zilpzalp",
+    "family": "Phylloscopidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Phylloscopus trochilus",
+    "commonNameEn": "Willow Warbler",
+    "commonNameDe": "Fitis",
+    "family": "Phylloscopidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Phylloscopus sibilatrix",
+    "commonNameEn": "Wood Warbler",
+    "commonNameDe": "Waldlaubsänger",
+    "family": "Phylloscopidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Acrocephalus scirpaceus",
+    "commonNameEn": "Eurasian Reed Warbler",
+    "commonNameDe": "Teichrohrsänger",
+    "family": "Acrocephalidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Acrocephalus schoenobaenus",
+    "commonNameEn": "Sedge Warbler",
+    "commonNameDe": "Schilfrohrsänger",
+    "family": "Acrocephalidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Acrocephalus arundinaceus",
+    "commonNameEn": "Great Reed Warbler",
+    "commonNameDe": "Drosselrohrsänger",
+    "family": "Acrocephalidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Regulus regulus",
+    "commonNameEn": "Goldcrest",
+    "commonNameDe": "Wintergoldhähnchen",
+    "family": "Regulidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Regulus ignicapilla",
+    "commonNameEn": "Common Firecrest",
+    "commonNameDe": "Sommergoldhähnchen",
+    "family": "Regulidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Sitta europaea",
+    "commonNameEn": "Eurasian Nuthatch",
+    "commonNameDe": "Kleiber",
+    "family": "Sittidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Certhia familiaris",
+    "commonNameEn": "Eurasian Treecreeper",
+    "commonNameDe": "Waldbaumläufer",
+    "family": "Certhiidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Certhia brachydactyla",
+    "commonNameEn": "Short-toed Treecreeper",
+    "commonNameDe": "Gartenbaumläufer",
+    "family": "Certhiidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Troglodytes troglodytes",
+    "commonNameEn": "Eurasian Wren",
+    "commonNameDe": "Zaunkönig",
+    "family": "Troglodytidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Prunella modularis",
+    "commonNameEn": "Dunnock",
+    "commonNameDe": "Heckenbraunelle",
+    "family": "Prunellidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Emberiza citrinella",
+    "commonNameEn": "Yellowhammer",
+    "commonNameDe": "Goldammer",
+    "family": "Emberizidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Emberiza schoeniclus",
+    "commonNameEn": "Common Reed Bunting",
+    "commonNameDe": "Rohrammer",
+    "family": "Emberizidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Emberiza calandra",
+    "commonNameEn": "Corn Bunting",
+    "commonNameDe": "Grauammer",
+    "family": "Emberizidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Emberiza cia",
+    "commonNameEn": "Rock Bunting",
+    "commonNameDe": "Zippammer",
+    "family": "Emberizidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Hirundo rustica",
+    "commonNameEn": "Barn Swallow",
+    "commonNameDe": "Rauchschwalbe",
+    "family": "Hirundinidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Delichon urbicum",
+    "commonNameEn": "Common House Martin",
+    "commonNameDe": "Mehlschwalbe",
+    "family": "Hirundinidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Riparia riparia",
+    "commonNameEn": "Sand Martin",
+    "commonNameDe": "Uferschwalbe",
+    "family": "Hirundinidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Apus apus",
+    "commonNameEn": "Common Swift",
+    "commonNameDe": "Mauersegler",
+    "family": "Apodidae",
+    "order": "Apodiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Upupa epops",
+    "commonNameEn": "Eurasian Hoopoe",
+    "commonNameDe": "Wiedehopf",
+    "family": "Upupidae",
+    "order": "Bucerotiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Merops apiaster",
+    "commonNameEn": "European Bee-eater",
+    "commonNameDe": "Bienenfresser",
+    "family": "Meropidae",
+    "order": "Coraciiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Alcedo atthis",
+    "commonNameEn": "Common Kingfisher",
+    "commonNameDe": "Eisvogel",
+    "family": "Alcedinidae",
+    "order": "Coraciiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Caprimulgus europaeus",
+    "commonNameEn": "European Nightjar",
+    "commonNameDe": "Ziegenmelker",
+    "family": "Caprimulgidae",
+    "order": "Caprimulgiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Cuculus canorus",
+    "commonNameEn": "Common Cuckoo",
+    "commonNameDe": "Kuckuck",
+    "family": "Cuculidae",
+    "order": "Cuculiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Oriolus oriolus",
+    "commonNameEn": "Eurasian Golden Oriole",
+    "commonNameDe": "Pirol",
+    "family": "Oriolidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Lanius collurio",
+    "commonNameEn": "Red-backed Shrike",
+    "commonNameDe": "Neuntöter",
+    "family": "Laniidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Lanius excubitor",
+    "commonNameEn": "Great Grey Shrike",
+    "commonNameDe": "Raubwürger",
+    "family": "Laniidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Bombycilla garrulus",
+    "commonNameEn": "Bohemian Waxwing",
+    "commonNameDe": "Seidenschwanz",
+    "family": "Bombycillidae",
+    "order": "Passeriformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Vanellus vanellus",
+    "commonNameEn": "Northern Lapwing",
+    "commonNameDe": "Kiebitz",
+    "family": "Charadriidae",
+    "order": "Charadriiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Scolopax rusticola",
+    "commonNameEn": "Eurasian Woodcock",
+    "commonNameDe": "Waldschnepfe",
+    "family": "Scolopacidae",
+    "order": "Charadriiformes",
+    "classHint": "Aves"
+  },
+  {
+    "scientificName": "Felis catus",
+    "commonNameEn": "Domestic Cat",
+    "commonNameDe": "Hauskatze",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Felis silvestris",
+    "commonNameEn": "European Wildcat",
+    "commonNameDe": "Europäische Wildkatze",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Felis chaus",
+    "commonNameEn": "Jungle Cat",
+    "commonNameDe": "Rohrkatze",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Lynx lynx",
+    "commonNameEn": "Eurasian Lynx",
+    "commonNameDe": "Eurasischer Luchs",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Lynx pardinus",
+    "commonNameEn": "Iberian Lynx",
+    "commonNameDe": "Pardelluchs",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Caracal caracal",
+    "commonNameEn": "Caracal",
+    "commonNameDe": "Karakal",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Leptailurus serval",
+    "commonNameEn": "Serval",
+    "commonNameDe": "Serval",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Prionailurus bengalensis",
+    "commonNameEn": "Leopard Cat",
+    "commonNameDe": "Bengalkatze",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Panthera pardus",
+    "commonNameEn": "Leopard",
+    "commonNameDe": "Leopard",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Puma concolor",
+    "commonNameEn": "Cougar",
+    "commonNameDe": "Puma",
+    "family": "Felidae",
+    "order": "Carnivora",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Sciurus vulgaris",
+    "commonNameEn": "Eurasian Red Squirrel",
+    "commonNameDe": "Eichhörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Sciurus carolinensis",
+    "commonNameEn": "Eastern Grey Squirrel",
+    "commonNameDe": "Grauhörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Sciurus niger",
+    "commonNameEn": "Fox Squirrel",
+    "commonNameDe": "Fuchshörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Sciurus aberti",
+    "commonNameEn": "Abert's Squirrel",
+    "commonNameDe": "Quastenhörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Tamiasciurus hudsonicus",
+    "commonNameEn": "American Red Squirrel",
+    "commonNameDe": "Rothörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Tamiasciurus douglasii",
+    "commonNameEn": "Douglas Squirrel",
+    "commonNameDe": "Douglas Squirrel",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Tamias striatus",
+    "commonNameEn": "Eastern Chipmunk",
+    "commonNameDe": "Östliches Streifenhörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Eutamias sibiricus",
+    "commonNameEn": "Siberian Chipmunk",
+    "commonNameDe": "Burunduk",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Neotamias minimus",
+    "commonNameEn": "Least Chipmunk",
+    "commonNameDe": "Least Chipmunk",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Marmota marmota",
+    "commonNameEn": "Alpine Marmot",
+    "commonNameDe": "Alpenmurmeltier",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Marmota monax",
+    "commonNameEn": "Groundhog",
+    "commonNameDe": "Waldmurmeltier",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Marmota bobak",
+    "commonNameEn": "Bobak Marmot",
+    "commonNameDe": "Steppenmurmeltier",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Spermophilus citellus",
+    "commonNameEn": "European Ground Squirrel",
+    "commonNameDe": "Europäischer Ziesel",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Urocitellus richardsonii",
+    "commonNameEn": "Richardson's Ground Squirrel",
+    "commonNameDe": "Richardson's Ground Squirrel",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Ictidomys tridecemlineatus",
+    "commonNameEn": "Thirteen-lined Ground Squirrel",
+    "commonNameDe": "Dreizehnstreifen-Ziesel",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Callospermophilus lateralis",
+    "commonNameEn": "Golden-mantled Ground Squirrel",
+    "commonNameDe": "Golden-mantled Ground Squirrel",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Pteromys volans",
+    "commonNameEn": "Siberian Flying Squirrel",
+    "commonNameDe": "Europäisches Gleithörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Glaucomys volans",
+    "commonNameEn": "Southern Flying Squirrel",
+    "commonNameDe": "Südliches Gleithörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Glaucomys sabrinus",
+    "commonNameEn": "Northern Flying Squirrel",
+    "commonNameDe": "Nördliches Gleithörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Petaurista petaurista",
+    "commonNameEn": "Red Giant Flying Squirrel",
+    "commonNameDe": "Rotes Riesengleithörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Callosciurus erythraeus",
+    "commonNameEn": "Pallas's Squirrel",
+    "commonNameDe": "Pallashörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Xerus inauris",
+    "commonNameEn": "South African Ground Squirrel",
+    "commonNameDe": "Kap-Borstenhörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  },
+  {
+    "scientificName": "Atlantoxerus getulus",
+    "commonNameEn": "Barbary Ground Squirrel",
+    "commonNameDe": "Atlashörnchen",
+    "family": "Sciuridae",
+    "order": "Rodentia",
+    "classHint": "Mammalia"
+  }
+]
