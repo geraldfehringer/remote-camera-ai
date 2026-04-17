@@ -94,16 +94,27 @@ export class WhatsappClient {
         this.options.log.warn({ err }, 'qr render failed')
       }
       this.state = 'qr'
+      this.options.log.info({ state: 'qr' }, 'whatsapp qr ready')
     })
 
     client.on('authenticated', () => {
       this.state = 'authenticating'
       this.qrDataUrl = undefined
+      this.options.log.info({ state: 'authenticating' }, 'whatsapp authenticated event')
+    })
+
+    client.on('loading_screen', (percent: number, message: string) => {
+      this.options.log.info({ percent, message }, 'whatsapp loading_screen')
+    })
+
+    client.on('change_state', (newState: string) => {
+      this.options.log.info({ newState }, 'whatsapp change_state')
     })
 
     client.on('auth_failure', (msg: string) => {
       this.lastError = msg || 'auth failure'
       this.state = 'error'
+      this.options.log.warn({ msg }, 'whatsapp auth_failure')
     })
 
     client.on('ready', () => {
