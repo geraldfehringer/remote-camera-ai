@@ -391,7 +391,7 @@ const envSchema = z.object({
   VISION_MIN_CONFIDENCE: z.coerce.number().default(0.4),
   VISION_MOTION_THRESHOLD: z.coerce.number().default(0.075),
   LLM_PROVIDER: z.enum(['gemini', 'claude', 'openai', 'together', 'stub']).default('gemini'),
-  LLM_MODEL: z.string().default('gemini-3-flash-preview'),
+  LLM_MODEL: z.string().default('gemini-3.1-flash-lite-preview'),
   LLM_MAX_CALLS_PER_HOUR: z.coerce.number().default(60),
   LLM_MAX_CALLS_TOTAL_PER_SESSION: z.coerce.number().default(400),
   LLM_TIMEOUT_MS: z.coerce.number().default(8_000),

@@ -12,7 +12,13 @@ export async function claudeNarrate(
   const msg = await client.messages.create({
     model,
     max_tokens: 400,
-    system: args.prompts.system,
+    // Cache the stable DE/EN system prompt (ephemeral, default 5 min TTL).
+    // Per-alert images are unique so caching them buys nothing; the system
+    // prompt is the shared prefix across every alert in a session, so every
+    // call after the first costs 0.1x input tokens for the system portion.
+    system: [
+      { type: 'text', text: args.prompts.system, cache_control: { type: 'ephemeral' } }
+    ],
     messages: [
       {
         role: 'user',
