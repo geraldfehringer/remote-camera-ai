@@ -1,0 +1,24 @@
+{
+  "name": "remote-camera-ai-whatsapp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "fastify": "^5.8.5",
+    "@fastify/sensible": "^6.0.4",
+    "qrcode": "^1.5.4",
+    "whatsapp-web.js": "^1.26.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.2",
+    "@types/qrcode": "^1.5.5",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2"
+  }
+}
