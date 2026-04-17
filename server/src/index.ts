@@ -460,7 +460,6 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
   WHATSAPP_SERVICE_URL: z.string().url().default('http://whatsapp:8091'),
-  WHATSAPP_ADMIN_TOKEN: z.string().default(''),
   SESSION_TTL_HOURS: z.coerce.number().default(SESSION_TTL_HOURS_DEFAULT),
 })
 
@@ -469,7 +468,6 @@ const env = envSchema.parse(process.env)
 const whatsappEnv: WhatsappEnv = {
   enabled: env.WHATSAPP_ENABLED,
   serviceUrl: env.WHATSAPP_SERVICE_URL,
-  adminToken: env.WHATSAPP_ADMIN_TOKEN,
 }
 
 const snapshotsRoot = path.resolve('/app/data/snapshots')

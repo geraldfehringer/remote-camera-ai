@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  WhatsappAuthRequiredError,
+  WhatsappDisabledError,
   WhatsappUnavailableError,
-  getStoredAdminToken,
   whatsappApi,
 } from '../lib/whatsappApi'
 import type { WhatsappStatus } from '../lib/types'
 
 export type WhatsappStatusError =
-  | { kind: 'auth-required' }
+  | { kind: 'disabled' }
   | { kind: 'unavailable'; message: string }
   | { kind: 'other'; message: string }
 
@@ -39,7 +38,7 @@ export function useWhatsappStatus(pollEnabled = true): WhatsappStatusSnapshot {
       setError(null)
     } catch (err) {
       if (ac.signal.aborted) return
-      if (err instanceof WhatsappAuthRequiredError) setError({ kind: 'auth-required' })
+      if (err instanceof WhatsappDisabledError) setError({ kind: 'disabled' })
       else if (err instanceof WhatsappUnavailableError) setError({ kind: 'unavailable', message: err.message })
       else setError({ kind: 'other', message: (err as Error).message })
     } finally {
@@ -48,10 +47,6 @@ export function useWhatsappStatus(pollEnabled = true): WhatsappStatusSnapshot {
   }, [])
 
   useEffect(() => {
-    if (!getStoredAdminToken()) {
-      setError({ kind: 'auth-required' })
-      return
-    }
     void refresh()
     if (!pollEnabled) return
     const id = window.setInterval(() => { void refresh() }, POLL_INTERVAL_MS)

@@ -18,7 +18,6 @@ export type WhatsappStatus = {
 export type WhatsappEnv = {
   enabled: boolean
   serviceUrl: string
-  adminToken: string
 }
 
 // Short text format used for every alert push. Single line, no newlines.
@@ -82,19 +81,6 @@ export async function dispatchAlert(
   }
 }
 
-export function requireAdminToken(env: WhatsappEnv) {
-  return async function (req: FastifyRequest, reply: FastifyReply): Promise<void> {
-    const header = req.headers['x-admin-token']
-    if (!env.adminToken) {
-      reply.code(503)
-      throw reply.send({ error: 'whatsapp admin token not configured' })
-    }
-    if (header !== env.adminToken) {
-      reply.code(401)
-      throw reply.send({ error: 'unauthorized' })
-    }
-  }
-}
 
 async function proxy(
   env: WhatsappEnv,
@@ -124,24 +110,22 @@ async function proxy(
 export function registerWhatsappRoutes(app: FastifyInstance, env: WhatsappEnv): void {
   if (!env.enabled) return
 
-  const guard = requireAdminToken(env)
-
-  app.get('/api/whatsapp/status', { preHandler: guard }, async (req, reply) =>
+  app.get('/api/whatsapp/status', async (req, reply) =>
     proxy(env, req, reply, '/status'),
   )
 
-  app.post('/api/whatsapp/config', { preHandler: guard }, async (req, reply) =>
+  app.post('/api/whatsapp/config', async (req, reply) =>
     proxy(env, req, reply, '/config', {
       method: 'POST',
       body: JSON.stringify(req.body ?? {}),
     }),
   )
 
-  app.post('/api/whatsapp/logout', { preHandler: guard }, async (req, reply) =>
+  app.post('/api/whatsapp/logout', async (req, reply) =>
     proxy(env, req, reply, '/logout', { method: 'POST' }),
   )
 
-  app.post('/api/whatsapp/test', { preHandler: guard }, async (req, reply) =>
+  app.post('/api/whatsapp/test', async (req, reply) =>
     proxy(env, req, reply, '/send', {
       method: 'POST',
       body: JSON.stringify({

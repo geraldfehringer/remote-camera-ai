@@ -136,13 +136,12 @@ npm run test:e2e
 
 ### WhatsApp alerts
 
-A new sidecar service (`whatsapp`) runs a headless Chromium + whatsapp-web.js
-session. On first boot open the homepage and scan the QR code with your
-phone (WhatsApp → Einstellungen → Verknüpfte Geräte). Enter a recipient
-phone number in E.164 format (`+49…`) and toggle alerts on. After that every
-minted alert is pushed to that number as a short text. Auth persists in
-`./data/whatsapp-auth`. Set `WHATSAPP_ADMIN_TOKEN` in `.env` — the web UI
-asks for it once and stores it locally.
+Ein Sidecar-Service (`whatsapp`) fährt einen headless Chromium mit whatsapp-web.js hoch.
+Öffne die Homepage, warte auf den QR-Code und scanne ihn mit deinem Handy
+(WhatsApp → Einstellungen → Verknüpfte Geräte → Gerät verknüpfen). Danach
+Telefonnummer (E.164 `+49…`) eintragen, Alerts aktivieren — jeder Treffer
+wird als kurze Textnachricht an dein Handy gepusht. Auth-Daten liegen in
+`./data/whatsapp-auth` und überleben Container-Neustarts.
 
 ## Grenzen der reinen Web-Loesung
 

@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react'
 import {
-  WhatsappAuthRequiredError,
+  WhatsappDisabledError,
   WhatsappUnavailableError,
-  setStoredAdminToken,
   whatsappApi,
 } from '../lib/whatsappApi'
 import { useWhatsappStatus } from '../hooks/useWhatsappStatus'
@@ -11,7 +10,6 @@ const E164_REGEX = /^\+[1-9]\d{6,14}$/
 
 export function WhatsappCard(): React.ReactElement {
   const { status, error, refresh } = useWhatsappStatus(true)
-  const [tokenInput, setTokenInput] = useState('')
   const [recipient, setRecipient] = useState('')
   const [busy, setBusy] = useState(false)
   const [flash, setFlash] = useState<string | null>(null)
@@ -27,21 +25,13 @@ export function WhatsappCard(): React.ReactElement {
       await fn()
       await refresh()
     } catch (err) {
-      if (err instanceof WhatsappAuthRequiredError) setFlash('Admin-Token ungültig.')
+      if (err instanceof WhatsappDisabledError) setFlash('WhatsApp-Feature ist deaktiviert.')
       else if (err instanceof WhatsappUnavailableError) setFlash(`WhatsApp-Dienst: ${err.message}`)
       else setFlash((err as Error).message)
     } finally {
       setBusy(false)
     }
   }, [refresh])
-
-  const submitToken = useCallback(async () => {
-    const trimmed = tokenInput.trim()
-    if (!trimmed) return
-    setStoredAdminToken(trimmed)
-    setTokenInput('')
-    await refresh()
-  }, [tokenInput, refresh])
 
   const saveRecipient = useCallback(async () => {
     if (!E164_REGEX.test(recipient)) {
@@ -70,27 +60,14 @@ export function WhatsappCard(): React.ReactElement {
     await run(async () => { await whatsappApi.logout() })
   }, [run])
 
-  if (error?.kind === 'auth-required') {
+  if (error?.kind === 'disabled') {
     return (
       <section className="card whatsapp-card" data-testid="whatsapp-card">
-        <header className="card__header">
-          <h2>Benachrichtigungen</h2>
-        </header>
+        <header className="card__header"><h2>Benachrichtigungen</h2></header>
         <p className="card__hint">
-          WhatsApp-Alerts erfordern einen Admin-Token (<code>WHATSAPP_ADMIN_TOKEN</code> in <code>.env</code>).
+          WhatsApp-Alerts sind aktuell deaktiviert. Setze <code>WHATSAPP_ENABLED=true</code> in <code>.env</code> und
+          starte die api-Container neu, um das Feature zu aktivieren.
         </p>
-        <div className="form-row">
-          <input
-            type="password"
-            placeholder="Admin-Token"
-            value={tokenInput}
-            onChange={(e) => setTokenInput(e.target.value)}
-            data-testid="whatsapp-token-input"
-          />
-          <button type="button" onClick={() => void submitToken()} data-testid="whatsapp-token-submit">
-            Speichern
-          </button>
-        </div>
       </section>
     )
   }
@@ -98,9 +75,7 @@ export function WhatsappCard(): React.ReactElement {
   if (error?.kind === 'unavailable') {
     return (
       <section className="card whatsapp-card" data-testid="whatsapp-card">
-        <header className="card__header">
-          <h2>Benachrichtigungen</h2>
-        </header>
+        <header className="card__header"><h2>Benachrichtigungen</h2></header>
         <p className="card__hint">WhatsApp-Dienst nicht erreichbar: {error.message}</p>
       </section>
     )
@@ -126,25 +101,36 @@ export function WhatsappCard(): React.ReactElement {
         <>
           <p className="card__hint">
             Einmalige Einrichtung: scanne den QR-Code mit deinem Telefon in
-            WhatsApp → Einstellungen → Verknüpfte Geräte.
+            WhatsApp. Dein Handy wird als „Verknüpftes Gerät" bei WhatsApp registriert —
+            der Server sendet dann Alerts in deinem Namen an eine gewählte Telefonnummer.
           </p>
-          <button type="button" disabled={busy} onClick={() => void run(() => whatsappApi.status().then(() => {}))}>
-            Verbinden
+          <button type="button" disabled={busy} onClick={() => void refresh()}>
+            QR-Code anfordern
           </button>
         </>
       )}
 
       {status.state === 'qr' && status.qrDataUrl && (
         <>
+          <ol className="whatsapp-onboarding">
+            <li>Öffne WhatsApp auf deinem Handy.</li>
+            <li>Gehe zu <strong>Einstellungen</strong> (iOS) / Drei-Punkte-Menü (Android) → <strong>Verknüpfte Geräte</strong>.</li>
+            <li>Tippe auf <strong>Gerät verknüpfen</strong>.</li>
+            <li>Scanne den QR-Code unten mit der Handy-Kamera.</li>
+          </ol>
           <div className="qr-tile">
             <img src={status.qrDataUrl} alt="WhatsApp QR-Code" data-testid="whatsapp-qr" />
           </div>
-          <p className="card__hint">QR mit WhatsApp scannen (Einstellungen → Verknüpfte Geräte → Gerät verknüpfen).</p>
+          <p className="card__hint">
+            Der Code wird alle ~20 s aktualisiert. Wenn er abläuft, erscheint automatisch ein neuer.
+          </p>
           <button type="button" disabled={busy} onClick={() => void logout()}>Abbrechen</button>
         </>
       )}
 
-      {status.state === 'authenticating' && <p className="card__hint">Wird verbunden …</p>}
+      {status.state === 'authenticating' && (
+        <p className="card__hint">Wird verbunden … dies kann einige Sekunden dauern.</p>
+      )}
 
       {status.state === 'ready' && (
         <>
