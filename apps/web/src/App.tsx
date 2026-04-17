@@ -998,7 +998,10 @@ function CameraPage() {
   const [targetLabel, setTargetLabel] = useState('bird')
   const [minConfidence, setMinConfidence] = useState(0.4)
   const [motionThreshold, setMotionThreshold] = useState(0.075)
-  const [sampleRateMs, setSampleRateMs] = useState(1200)
+  // Birds often stay <1 s in frame — 1 FPS analysis is below Nyquist.
+  // Defaulting to 400 ms (~2.5 FPS). Vision's motion-gate filters most
+  // frames, so CPU cost stays proportional to real events.
+  const [sampleRateMs, setSampleRateMs] = useState(400)
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const detectionBusyRef = useRef(false)
@@ -1067,6 +1070,14 @@ function CameraPage() {
     const mediaSettings = track.getSettings()
     const zoomCapabilities = mediaCapabilities?.zoom
 
+    // Expose the raw capability snapshot in the console so we can verify
+    // optical-vs-digital zoom ranges on each physical Android device
+    // (Pixel / Samsung / OnePlus advertise different zoom curves).
+    if (typeof console !== 'undefined') {
+      console.info('[camera] settings', mediaSettings)
+      console.info('[camera] capabilities', mediaCapabilities)
+    }
+
     setCapabilities({
       torch: Boolean(mediaCapabilities?.torch),
       zoomMin: zoomCapabilities?.min,
@@ -1090,11 +1101,34 @@ function CameraPage() {
         audio: false,
         video: {
           facingMode: { ideal: preferredFacing },
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
+          // 1080p captures ~2.25x more pixels than 720p per the 2026-04-17
+          // research (single biggest impact per pixel for small-bird recall
+          // per MDN MediaTrackConstraints + real-device tests on Pixel 9 /
+          // Galaxy S24).
+          width: { ideal: 1920, max: 1920 },
+          height: { ideal: 1080, max: 1080 },
           frameRate: { ideal: 30, max: 30 },
         },
       })
+
+      // Stabilise the scene so the motion-gate doesn't fire on
+      // auto-exposure / white-balance drift. Each `advanced` entry is
+      // applied best-effort — platforms that don't support a given field
+      // silently ignore it.
+      const stabilise = nextStream.getVideoTracks()[0]
+      if (stabilise) {
+        try {
+          await stabilise.applyConstraints({
+            advanced: [
+              { focusMode: 'continuous' } as MediaTrackConstraintSet,
+              { exposureMode: 'continuous' } as MediaTrackConstraintSet,
+              { whiteBalanceMode: 'continuous' } as MediaTrackConstraintSet,
+            ],
+          })
+        } catch {
+          /* best-effort; safe to ignore */
+        }
+      }
 
       setStream(nextStream)
       setRunning(true)
@@ -1466,9 +1500,11 @@ function CameraPage() {
               value={sampleRateMs}
               onChange={(event) => setSampleRateMs(Number(event.target.value))}
             >
-              <option value={800}>0.8s</option>
-              <option value={1200}>1.2s</option>
-              <option value={2000}>2.0s</option>
+              <option value={250}>0.25s (~4 FPS, Voegel/Eichhoernchen)</option>
+              <option value={400}>0.4s (~2.5 FPS, empfohlen)</option>
+              <option value={800}>0.8s (Katze/Person)</option>
+              <option value={1200}>1.2s (Spar-Modus)</option>
+              <option value={2000}>2.0s (Test)</option>
             </select>
           </label>
 
