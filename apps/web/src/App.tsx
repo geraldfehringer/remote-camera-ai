@@ -1568,35 +1568,91 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
       .join(', ')
   }, [detection.matchedObjects])
 
+  const precisionRan = detection.precisionVerifierRan
+  const sam3Ran = detection.sam3VerifierAvailable && detection.sam3VerifierRan
+  const speciesMode = detection.speciesMode
+  const speciesCandidates = detection.speciesCandidates ?? []
+
   return (
     <div className="alert-card" data-testid="alert-card">
       <div className="stat-grid">
-        <Stat label="Motion Score" value={detection.motionScore.toFixed(3)} />
-        <Stat label="Motion" value={detection.motionDetected ? 'Ja' : 'Nein'} />
-        <Stat label="Target" value={detection.targetLabel} />
-        <Stat label="Zeit" value={formatTimestamp(detection.createdAt)} />
-        <Stat label="Vision Modell" value={detection.visionModel} />
-        <Stat label="YOLO Lauf" value={detection.objectDetectionRan ? 'Ja' : 'Nein'} />
-        <Stat label="Bestaetigte Treffer" value={String(detection.confirmedMatchCount)} />
-        <Stat label="Tracking" value={detection.trackingMode} />
-        <Stat label="Praezisions-Check" value={detection.precisionVerifierRan ? (detection.precisionVerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Aus'} />
-        <Stat label="Verifier Modell" value={detection.precisionVerifierModel ?? 'n/a'} />
-        <Stat label="Verifier Modus" value={detection.precisionVerifierMode ?? 'n/a'} />
-        <Stat label="SAM 3" value={detection.sam3VerifierAvailable ? (detection.sam3VerifierRan ? (detection.sam3VerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Bereit') : 'Nicht aktiv'} />
-        <Stat label="SAM 3 Modell" value={detection.sam3VerifierModel ?? 'n/a'} />
+        <Stat
+          label="Motion Score"
+          value={detection.motionScore.toFixed(3)}
+          tooltip="Anteil der Pixel, die sich seit dem letzten Frame veraendert haben. Ab 0.030 (Vogel/Eichhoernchen) bzw. 0.040 (Katze) wird die Objekterkennung gestartet."
+        />
+        <Stat
+          label="Motion"
+          value={detection.motionDetected ? 'Ja' : 'Nein'}
+          tooltip="Hat das Motion-Gate den aktuellen Frame als bewegt eingestuft?"
+        />
+        <Stat label="Target" value={detection.targetLabel} tooltip="Welches Objekt soll erkannt werden. Beeinflusst Schwellwerte und die Artbestimmung." />
+        <Stat label="Zeit" value={formatTimestamp(detection.createdAt)} tooltip="Zeitpunkt des letzten Kamera-Frames, den Vision analysiert hat." />
+        <Stat label="Vision Modell" value={detection.visionModel} tooltip="Ultralytics YOLO-Gewichte fuer die schnelle Objekterkennung (Stufe 2 der Pipeline)." />
+        <Stat
+          label="YOLO Lauf"
+          value={detection.objectDetectionRan ? 'Ja' : 'Nein'}
+          tooltip="Ob YOLO im aktuellen Frame gelaufen ist. 'Nein' heisst meistens: Motion-Gate hat uebersprungen."
+        />
+        <Stat
+          label="Bestaetigte Treffer"
+          value={String(detection.confirmedMatchCount)}
+          tooltip="Anzahl der vom IoU-Tracker bestaetigten Detections. Ab 1 mintet der Server einen Alert."
+        />
+        <Stat label="Tracking" value={detection.trackingMode} tooltip="Welches Tracker-Verfahren bestaetigt aufeinander folgende Frames." />
+        <Stat
+          label="Praezisions-Check"
+          value={precisionRan ? (detection.precisionVerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Aus'}
+          tooltip="YOLOE-26x prueft Kandidaten aus Stufe 2 noch einmal in hoeherer Aufloesung mit Text-Prompt (Stufe 3)."
+        />
+        {precisionRan ? (
+          <>
+            <Stat label="Verifier Modell" value={detection.precisionVerifierModel ?? 'n/a'} tooltip="Dateiname der geladenen YOLOE-Gewichte." />
+            <Stat
+              label="Verifier Modus"
+              value={detection.precisionVerifierMode ?? 'n/a'}
+              tooltip="text-prompt: Prueft per freier Beschreibung. class-filter: klassischer COCO-Klassenfilter. skipped: enabled aber nichts zu verifizieren."
+            />
+          </>
+        ) : null}
+        <Stat
+          label="SAM 3"
+          value={detection.sam3VerifierAvailable ? (detection.sam3VerifierRan ? (detection.sam3VerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Bereit') : 'Nicht aktiv'}
+          tooltip="Metas Segment-Anything-Model 3 zeichnet die genaue Silhouette (Stufe 4). Laeuft nur wenn Datei vorhanden und YOLOE einen Kandidaten gemeldet hat."
+        />
+        {sam3Ran ? (
+          <Stat label="SAM 3 Modell" value={detection.sam3VerifierModel ?? 'n/a'} tooltip="Pfad der geladenen SAM-3-Gewichte." />
+        ) : null}
+        {speciesMode === 'top3' && speciesCandidates.length > 0 ? (
+          <Stat
+            label="Arterkennung"
+            value={`${(speciesCandidates[0].confidence * 100).toFixed(0)}% ${speciesCandidates[0].commonName}`}
+            tooltip="Top-1 Artbestimmung von BioCLIP 2 (Stufe 5). Vollstaendige Top-3 siehe unten."
+          />
+        ) : null}
       </div>
+
+      {speciesMode === 'top3' && speciesCandidates.length > 0 ? (
+        <p className="muted-copy species-inline">
+          <strong>Top-3:</strong>{' '}
+          {speciesCandidates
+            .map((c) => `${(c.confidence * 100).toFixed(0)}% ${c.commonName} (${c.scientificName})`)
+            .join(' · ')}
+        </p>
+      ) : null}
+
       <p className="muted-copy">
         {detection.detectionMode} · {detection.objectDetectionReason} · {detection.trackConfirmationFrames} Frames bis Bestaetigung
       </p>
       <p className="muted-copy">
         ROI-Refinement: {detection.regionRefinementUsed ? 'Ja' : 'Nein'}
       </p>
-      {detection.precisionVerifierRan ? (
+      {precisionRan ? (
         <p className="muted-copy">
-          Prompt: {detection.precisionVerifierPrompt ?? 'n/a'}
+          YOLOE-Prompt: {detection.precisionVerifierPrompt ?? 'n/a'}
         </p>
       ) : null}
-      {detection.sam3VerifierAvailable ? (
+      {sam3Ran ? (
         <p className="muted-copy">
           SAM 3: {detection.sam3VerifierMode ?? 'n/a'} · Prompt: {detection.sam3VerifierPrompt ?? 'n/a'}
         </p>
@@ -1614,10 +1670,22 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
   )
 }
 
-function Stat(props: { label: string; value: string }) {
+function Stat(props: { label: string; value: string; tooltip?: string }) {
   return (
     <div className="stat-card">
-      <span>{props.label}</span>
+      <span>
+        {props.label}
+        {props.tooltip ? (
+          <span
+            className="stat-help"
+            role="img"
+            aria-label={`Hilfe: ${props.tooltip}`}
+            title={props.tooltip}
+          >
+            ?
+          </span>
+        ) : null}
+      </span>
       <strong>{props.value}</strong>
     </div>
   )

@@ -30,6 +30,14 @@ export type DetectionResult = {
     trackStreak?: number | null
     confirmed?: boolean
   }>
+  speciesCandidates?: Array<{
+    scientificName: string
+    commonName: string
+    confidence: number
+    taxonomyPath: string
+  }>
+  speciesMode?: 'unavailable' | 'disabled' | 'skipped' | 'error' | 'top3'
+  speciesModel?: string | null
   snapshotUrl?: string
   createdAt: string
 }
