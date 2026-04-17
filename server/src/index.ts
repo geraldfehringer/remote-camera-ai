@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
-import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import Fastify from 'fastify'
 import type { FastifyRequest } from 'fastify'
@@ -275,9 +275,16 @@ const VISION_ALERT_NOTRACK_COOLDOWN_MS = Number(process.env.VISION_ALERT_NOTRACK
 // remain vision-container env because they influence per-session state.
 type TargetProfile = { minConfidence: number; motionThreshold: number }
 const TARGET_PROFILES: Record<string, TargetProfile> = {
-  bird:         { minConfidence: 0.25, motionThreshold: 0.030 },
+  // Birds often perch and sit almost still (motion≈0.005-0.01 even when
+  // visibly in frame). A high motion gate blocks YOLO entirely. Keep the
+  // motion threshold very permissive and rely on YOLO confidence to filter.
+  // Confidence 0.12 catches distant / small / unusual-angle birds that
+  // YOLO26n otherwise scores in the 0.15-0.22 band; YOLOE-26x precision
+  // verifier at 1280px filters out the obvious false positives.
+  bird:         { minConfidence: 0.12, motionThreshold: 0.005 },
   cat:          { minConfidence: 0.35, motionThreshold: 0.040 },
-  squirrel:     { minConfidence: 0.22, motionThreshold: 0.030 },
+  // Squirrels freeze + dart in bursts; permissive motion + low YOLO conf.
+  squirrel:     { minConfidence: 0.20, motionThreshold: 0.010 },
   person:       { minConfidence: 0.40, motionThreshold: 0.050 },
   'motion-only':{ minConfidence: 0.50, motionThreshold: 0.030 },
 }
@@ -365,7 +372,20 @@ function shouldMintAlert(
 function appendEvent(session: Session, event: AlertEvent): void {
   session.events.push(event)
   if (session.events.length > MAX_EVENTS_PER_SESSION) {
-    session.events.splice(0, session.events.length - MAX_EVENTS_PER_SESSION)
+    const evicted = session.events.splice(
+      0,
+      session.events.length - MAX_EVENTS_PER_SESSION
+    )
+    // Delete snapshot files for dropped events so a long-running session
+    // doesn't accumulate unbounded JPG blobs on the bind-mounted volume.
+    for (const ev of evicted) {
+      if (!ev.snapshotUrl) continue
+      const fname = ev.snapshotUrl.split('?', 1)[0] ?? ev.snapshotUrl
+      const file = path.join(snapshotsRoot, session.id, path.basename(fname))
+      void rm(file, { force: true }).catch((err) => {
+        app.log.warn({ err, eventId: ev.id }, 'snapshot cleanup failed')
+      })
+    }
   }
 }
 
@@ -1198,6 +1218,33 @@ app.get('/ws', { websocket: true }, (socket, request) => {
 })
 
 const sessionTtlMs = env.SESSION_TTL_HOURS * 3_600_000
+
+async function sweepOrphanedSnapshots(): Promise<void> {
+  try {
+    const dirs = await readdir(snapshotsRoot)
+    const liveIds = new Set(sessions.keys())
+    const orphans = dirs.filter((d) => d !== '.gitkeep' && !liveIds.has(d))
+    for (const d of orphans) {
+      const target = path.join(snapshotsRoot, d)
+      try {
+        await rm(target, { recursive: true, force: true })
+        app.log.info({ orphanDir: d }, 'cleaned orphaned snapshot directory')
+      } catch (err) {
+        app.log.warn({ err, orphanDir: d }, 'failed to remove orphaned snapshot dir')
+      }
+    }
+  } catch (err) {
+    const nodeError = err as NodeJS.ErrnoException
+    if (nodeError?.code !== 'ENOENT') {
+      app.log.warn({ err }, 'orphaned-snapshot sweep failed')
+    }
+  }
+}
+
+// Run once at startup so stale state from prior crashes / manual edits
+// doesn't persist across restarts.
+await sweepOrphanedSnapshots()
+
 const sweepInterval = setInterval(async () => {
   const now = Date.now()
   const expired: string[] = []
@@ -1208,6 +1255,7 @@ const sweepInterval = setInterval(async () => {
     app.log.info({ sessionId: id }, 'expiring session (TTL)')
     await expireSession(id)
   }
+  await sweepOrphanedSnapshots()
 }, SWEEP_INTERVAL_MS)
 
 process.on('SIGTERM', () => clearInterval(sweepInterval))

@@ -814,7 +814,7 @@ function ViewerPage() {
   return (
     <PageLayout
       title="Viewer"
-      subtitle="Zweites Android-Geraet fuer Live-Ansicht und Alerts."
+      subtitle="Live-Stream und Alerts in jedem Browser im Heimnetz. Pro Session ist genau ein Viewer aktiv — ein zweiter Tab uebernimmt und schliesst den aelteren."
       backLink
     >
       <section className="grid-two">
@@ -1568,96 +1568,95 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
       .join(', ')
   }, [detection.matchedObjects])
 
+  const motionTriggered = detection.motionDetected
+  const yoloRan = detection.objectDetectionRan
   const precisionRan = detection.precisionVerifierRan
-  const sam3Ran = detection.sam3VerifierAvailable && detection.sam3VerifierRan
+  const precisionMatched = precisionRan && detection.precisionVerifierMatched
+  const sam3Ran = Boolean(detection.sam3VerifierAvailable && detection.sam3VerifierRan)
+  const sam3Matched = sam3Ran && detection.sam3VerifierMatched
   const speciesMode = detection.speciesMode
   const speciesCandidates = detection.speciesCandidates ?? []
+  const speciesRan = speciesMode === 'top3' && speciesCandidates.length > 0
+
+  const stageFlow: StageChipProps[] = [
+    { name: 'Bewegung', state: motionTriggered ? 'hit' : 'skipped' },
+    { name: 'YOLO', state: yoloRan ? (detection.matchedObjects.length > 0 ? 'hit' : 'miss') : 'skipped' },
+    {
+      name: 'YOLOE',
+      state: precisionRan ? (precisionMatched ? 'hit' : 'miss') : 'skipped',
+    },
+    {
+      name: 'SAM 3',
+      state: detection.sam3VerifierAvailable
+        ? sam3Ran
+          ? sam3Matched
+            ? 'hit'
+            : 'miss'
+          : 'skipped'
+        : 'disabled',
+    },
+    { name: 'BioCLIP', state: speciesRan ? 'hit' : 'skipped' },
+  ]
 
   return (
     <div className="alert-card" data-testid="alert-card">
-      <div className="stat-grid">
-        <Stat
-          label="Motion Score"
-          value={detection.motionScore.toFixed(3)}
-          tooltip="Anteil der Pixel, die sich seit dem letzten Frame veraendert haben. Ab 0.030 (Vogel/Eichhoernchen) bzw. 0.040 (Katze) wird die Objekterkennung gestartet."
-        />
-        <Stat
+      <div className="alert-pills">
+        <AlertPill
           label="Motion"
-          value={detection.motionDetected ? 'Ja' : 'Nein'}
-          tooltip="Hat das Motion-Gate den aktuellen Frame als bewegt eingestuft?"
+          value={detection.motionScore.toFixed(3)}
+          tone={motionTriggered ? 'hit' : 'idle'}
         />
-        <Stat label="Target" value={detection.targetLabel} tooltip="Welches Objekt soll erkannt werden. Beeinflusst Schwellwerte und die Artbestimmung." />
-        <Stat label="Zeit" value={formatTimestamp(detection.createdAt)} tooltip="Zeitpunkt des letzten Kamera-Frames, den Vision analysiert hat." />
-        <Stat label="Vision Modell" value={detection.visionModel} tooltip="Ultralytics YOLO-Gewichte fuer die schnelle Objekterkennung (Stufe 2 der Pipeline)." />
-        <Stat
-          label="YOLO Lauf"
-          value={detection.objectDetectionRan ? 'Ja' : 'Nein'}
-          tooltip="Ob YOLO im aktuellen Frame gelaufen ist. 'Nein' heisst meistens: Motion-Gate hat uebersprungen."
+        <AlertPill
+          label="Ziel"
+          value={detection.targetLabel}
+          tone="neutral"
         />
-        <Stat
-          label="Bestaetigte Treffer"
+        <AlertPill
+          label="Bestaetigt"
           value={String(detection.confirmedMatchCount)}
-          tooltip="Anzahl der vom IoU-Tracker bestaetigten Detections. Ab 1 mintet der Server einen Alert."
+          tone={detection.confirmedMatchCount > 0 ? 'hit' : 'idle'}
         />
-        <Stat label="Tracking" value={detection.trackingMode} tooltip="Welches Tracker-Verfahren bestaetigt aufeinander folgende Frames." />
-        <Stat
-          label="Praezisions-Check"
-          value={precisionRan ? (detection.precisionVerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Aus'}
-          tooltip="YOLOE-26x prueft Kandidaten aus Stufe 2 noch einmal in hoeherer Aufloesung mit Text-Prompt (Stufe 3)."
+        <AlertPill
+          label="Zeit"
+          value={formatTimestamp(detection.createdAt)}
+          tone="neutral"
         />
-        {precisionRan ? (
-          <>
-            <Stat label="Verifier Modell" value={detection.precisionVerifierModel ?? 'n/a'} tooltip="Dateiname der geladenen YOLOE-Gewichte." />
-            <Stat
-              label="Verifier Modus"
-              value={detection.precisionVerifierMode ?? 'n/a'}
-              tooltip="text-prompt: Prueft per freier Beschreibung. class-filter: klassischer COCO-Klassenfilter. skipped: enabled aber nichts zu verifizieren."
-            />
-          </>
-        ) : null}
-        <Stat
-          label="SAM 3"
-          value={detection.sam3VerifierAvailable ? (detection.sam3VerifierRan ? (detection.sam3VerifierMatched ? 'Treffer' : 'Kein Treffer') : 'Bereit') : 'Nicht aktiv'}
-          tooltip="Metas Segment-Anything-Model 3 zeichnet die genaue Silhouette (Stufe 4). Laeuft nur wenn Datei vorhanden und YOLOE einen Kandidaten gemeldet hat."
-        />
-        {sam3Ran ? (
-          <Stat label="SAM 3 Modell" value={detection.sam3VerifierModel ?? 'n/a'} tooltip="Pfad der geladenen SAM-3-Gewichte." />
-        ) : null}
-        {speciesMode === 'top3' && speciesCandidates.length > 0 ? (
-          <Stat
-            label="Arterkennung"
-            value={`${(speciesCandidates[0].confidence * 100).toFixed(0)}% ${speciesCandidates[0].commonName}`}
-            tooltip="Top-1 Artbestimmung von BioCLIP 2 (Stufe 5). Vollstaendige Top-3 siehe unten."
-          />
-        ) : null}
       </div>
 
-      {speciesMode === 'top3' && speciesCandidates.length > 0 ? (
-        <p className="muted-copy species-inline">
-          <strong>Top-3:</strong>{' '}
-          {speciesCandidates
-            .map((c) => `${(c.confidence * 100).toFixed(0)}% ${c.commonName} (${c.scientificName})`)
-            .join(' · ')}
-        </p>
+      <div className="stage-flow" aria-label="Erkennungs-Pipeline">
+        {stageFlow.map((stage, idx) => (
+          <StageChip key={stage.name} {...stage} isLast={idx === stageFlow.length - 1} />
+        ))}
+      </div>
+
+      {speciesRan ? (
+        <div className="species-panel">
+          <header>
+            <strong>Artbestimmung</strong>
+            <span className="muted-copy">BioCLIP 2 · Top 3</span>
+          </header>
+          <ul>
+            {speciesCandidates.slice(0, 3).map((c, idx) => (
+              <li key={c.scientificName} className={idx === 0 ? 'species-row top' : 'species-row'}>
+                <div className="species-row__meta">
+                  <strong>{c.commonName}</strong>
+                  <span className="muted-copy">{c.scientificName}</span>
+                </div>
+                <div className="species-row__bar">
+                  <div
+                    className="species-row__fill"
+                    style={{ width: `${Math.min(100, Math.max(4, c.confidence * 100)).toFixed(1)}%` }}
+                  />
+                </div>
+                <span className="species-row__pct">{(c.confidence * 100).toFixed(0)}%</span>
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
 
-      <p className="muted-copy">
-        {detection.detectionMode} · {detection.objectDetectionReason} · {detection.trackConfirmationFrames} Frames bis Bestaetigung
-      </p>
-      <p className="muted-copy">
-        ROI-Refinement: {detection.regionRefinementUsed ? 'Ja' : 'Nein'}
-      </p>
-      {precisionRan ? (
-        <p className="muted-copy">
-          YOLOE-Prompt: {detection.precisionVerifierPrompt ?? 'n/a'}
-        </p>
-      ) : null}
-      {sam3Ran ? (
-        <p className="muted-copy">
-          SAM 3: {detection.sam3VerifierMode ?? 'n/a'} · Prompt: {detection.sam3VerifierPrompt ?? 'n/a'}
-        </p>
-      ) : null}
-      <p className="muted-copy">{matches}</p>
+      {matches ? <p className="muted-copy alert-matches">Treffer: {matches}</p> : null}
+
       {detection.snapshotUrl ? (
         <img
           className="snapshot-image"
@@ -1670,24 +1669,43 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
   )
 }
 
-function Stat(props: { label: string; value: string; tooltip?: string }) {
+function Stat(props: { label: string; value: string }) {
   return (
     <div className="stat-card">
-      <span>
-        {props.label}
-        {props.tooltip ? (
-          <span
-            className="stat-help"
-            role="img"
-            aria-label={`Hilfe: ${props.tooltip}`}
-            title={props.tooltip}
-          >
-            ?
-          </span>
-        ) : null}
-      </span>
+      <span>{props.label}</span>
       <strong>{props.value}</strong>
     </div>
+  )
+}
+
+type AlertPillTone = 'hit' | 'idle' | 'neutral'
+function AlertPill(props: { label: string; value: string; tone: AlertPillTone }) {
+  return (
+    <div className={`alert-pill alert-pill--${props.tone}`}>
+      <span className="alert-pill__label">{props.label}</span>
+      <strong className="alert-pill__value">{props.value}</strong>
+    </div>
+  )
+}
+
+type StageState = 'hit' | 'miss' | 'skipped' | 'disabled'
+type StageChipProps = { name: string; state: StageState; isLast?: boolean }
+
+function StageChip({ name, state, isLast }: StageChipProps) {
+  const labelFor: Record<StageState, string> = {
+    hit: 'Treffer',
+    miss: 'Kein Treffer',
+    skipped: 'nicht gelaufen',
+    disabled: 'aus',
+  }
+  return (
+    <>
+      <div className={`stage-chip stage-chip--${state}`} title={`${name}: ${labelFor[state]}`}>
+        <span className="stage-chip__name">{name}</span>
+        <span className="stage-chip__state">{labelFor[state]}</span>
+      </div>
+      {!isLast ? <span className="stage-chip__arrow" aria-hidden="true">›</span> : null}
+    </>
   )
 }
 
