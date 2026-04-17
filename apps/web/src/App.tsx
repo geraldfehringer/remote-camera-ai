@@ -1240,24 +1240,18 @@ function CameraPage() {
 
           <label className="field">
             <span>Zielobjekt</span>
-            <input
-              type="text"
+            <select
               data-testid="target-label"
-              list="target-suggestions"
               value={targetLabel}
               onChange={(event) => setTargetLabel(event.target.value)}
-              placeholder="Taube auf dem Gelaender, person in yellow jacket, weisses Auto"
-            />
+            >
+              <option value="bird">Vogel (bird)</option>
+              <option value="cat">Katze (cat)</option>
+              <option value="squirrel">Eichhörnchen (squirrel)</option>
+              <option value="person">Person (human)</option>
+              <option value="motion-only">Bewegung (motion-only)</option>
+            </select>
           </label>
-
-          <datalist id="target-suggestions">
-            {supportedTargets.map((target) => (
-              <option key={target} value={target} />
-            ))}
-            {(config?.targetInputGuidance.examples ?? []).map((example) => (
-              <option key={example} value={example} />
-            ))}
-          </datalist>
 
           <div className="target-guidance-card">
             <div className="target-guidance-header">
