@@ -29,6 +29,7 @@ import type {
   SessionMetadata,
   VisionRuntimeSummary,
 } from './lib/types'
+import { WhatsappCard } from './components/WhatsappCard'
 
 type FacingMode = 'environment' | 'user'
 
@@ -460,6 +461,8 @@ function HomePage() {
         </div>
       </section>
 
+      <WhatsappCard />
+
       <section className="grid-full">
         <article className="glass-card pipeline-card">
           <div className="card-header">
@@ -554,6 +557,7 @@ function HomePage() {
             <li>Auf <strong>Neue Session starten</strong> tippen — zwei Links werden erzeugt.</li>
             <li>Camera-Link am Telefon oeffnen, Zielobjekt waehlen, Stream starten.</li>
             <li>Viewer-Link auf irgendeinem Geraet oeffnen — Live-View + Alert-Log erscheinen automatisch.</li>
+            <li>WhatsApp-Alert an dein Handy, sobald ein Treffer landet.</li>
           </ol>
         </article>
 
