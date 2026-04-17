@@ -449,6 +449,12 @@ const envSchema = z.object({
   ANTHROPIC_API_KEY: z.string().default(''),
   OPENAI_API_KEY: z.string().default(''),
   TOGETHER_API_KEY: z.string().default(''),
+  WHATSAPP_ENABLED: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  WHATSAPP_SERVICE_URL: z.string().url().default('http://whatsapp:8091'),
+  WHATSAPP_ADMIN_TOKEN: z.string().default(''),
   SESSION_TTL_HOURS: z.coerce.number().default(SESSION_TTL_HOURS_DEFAULT),
 })
 
