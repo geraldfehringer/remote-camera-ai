@@ -75,3 +75,22 @@ test('camera and viewer connect through the browser flow', async ({ browser }) =
   await viewerContext.close()
   await homeContext.close()
 })
+
+test('homepage renders WhatsApp card and gates admin API', async ({ browser, request }) => {
+  const homeContext = await browser.newContext()
+  const homePage = await homeContext.newPage()
+  await homePage.goto('/')
+  await expect(homePage.getByTestId('home-page')).toBeVisible()
+
+  // Card is present irrespective of whether a token is stored.
+  await expect(homePage.getByTestId('whatsapp-card')).toBeVisible()
+
+  // API requires x-admin-token; without it, 401.
+  const statusWithoutToken = await request.get('/api/whatsapp/status')
+  expect([401, 404, 503]).toContain(statusWithoutToken.status())
+  // 401 = enabled + token configured + missing header
+  // 503 = enabled but no token configured in env
+  // 404 = whatsapp feature disabled via WHATSAPP_ENABLED=false (route not mounted)
+
+  await homeContext.close()
+})
