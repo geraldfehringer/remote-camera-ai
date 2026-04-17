@@ -293,7 +293,11 @@ const TARGET_PROFILES: Record<string, TargetProfile> = {
   cat:          { minConfidence: 0.35, motionThreshold: 0.040 },
   // Squirrels freeze + dart in bursts; permissive motion + low YOLO conf.
   squirrel:     { minConfidence: 0.20, motionThreshold: 0.010 },
-  person:       { minConfidence: 0.40, motionThreshold: 0.050 },
+  // Person at close-to-camera / oblique angles scores poorly on YOLO26n
+  // (nano is trained on typical 'person in scene' distances, not 'filling
+  // the frame'). Permissive confidence + lower motion threshold lets the
+  // precision verifier recover the match at 1280px.
+  person:       { minConfidence: 0.20, motionThreshold: 0.015 },
   'motion-only':{ minConfidence: 0.50, motionThreshold: 0.030 },
 }
 
