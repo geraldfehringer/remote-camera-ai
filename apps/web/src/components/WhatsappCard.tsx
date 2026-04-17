@@ -41,6 +41,7 @@ export function WhatsappCard(): React.ReactElement {
     await run(async () => {
       await whatsappApi.config(status?.enabled ?? true, recipient)
     })
+    setFlash(`Empfänger gespeichert: ${recipient}`)
   }, [recipient, run, status?.enabled])
 
   const toggleEnabled = useCallback(async () => {
@@ -148,8 +149,24 @@ export function WhatsappCard(): React.ReactElement {
               onChange={(e) => setRecipient(e.target.value)}
               data-testid="whatsapp-recipient"
             />
-            <button type="button" disabled={busy} onClick={() => void saveRecipient()}>Speichern</button>
+            <button
+              type="button"
+              disabled={busy || (status.recipientE164 === recipient.trim() && recipient.trim() !== '')}
+              onClick={() => void saveRecipient()}
+            >
+              {status.recipientE164 === recipient.trim() && recipient.trim() !== ''
+                ? 'Gespeichert ✓'
+                : 'Speichern'}
+            </button>
           </div>
+          {status.recipientE164 && (
+            <p className="card__hint card__hint--small" data-testid="whatsapp-saved-recipient">
+              Aktueller Empfänger: <strong>{status.recipientE164}</strong>
+              {recipient.trim() !== '' && recipient.trim() !== status.recipientE164 && (
+                <> · <em>Änderungen noch nicht gespeichert</em></>
+              )}
+            </p>
+          )}
           <div className="wa-toggle">
             <label>
               <input
@@ -159,14 +176,34 @@ export function WhatsappCard(): React.ReactElement {
                 disabled={busy}
                 data-testid="whatsapp-enabled"
               />
-              Alerts aktiv
+              Alerts aktiv <strong>{status.enabled ? '(an)' : '(aus)'}</strong>
             </label>
-            <button type="button" disabled={busy || !status.enabled} onClick={() => void sendTest()}>
-              Testnachricht
+            <button
+              type="button"
+              disabled={busy || !status.recipientE164}
+              onClick={() => void sendTest()}
+              data-testid="whatsapp-test"
+            >
+              Testnachricht senden
             </button>
-            <button type="button" disabled={busy} onClick={() => void logout()} className="secondary">
-              Trennen
+          </div>
+          <div className="wa-reset">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                if (window.confirm('WhatsApp zurücksetzen? Das aktuelle Telefon wird abgemeldet und ein neuer QR-Code wird angezeigt, den du mit einem beliebigen WhatsApp-Telefon scannen kannst.')) {
+                  void logout()
+                }
+              }}
+              className="danger"
+              data-testid="whatsapp-reset"
+            >
+              WhatsApp zurücksetzen & anderes Telefon verbinden
             </button>
+            <p className="card__hint card__hint--small">
+              Trennt das aktuelle Telefon, löscht die Session und zeigt einen neuen QR-Code an.
+            </p>
           </div>
           <p className="card__hint card__hint--small">
             Gesendet: {status.sentCount} · Rate-limited: {status.rateLimitedCount} · Fehler: {status.sendErrorCount}
