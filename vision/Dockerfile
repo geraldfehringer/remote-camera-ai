@@ -23,8 +23,13 @@ RUN pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requir
 #    below are edited, so code edits under /app don't re-download ~5GB.
 RUN mkdir -p /models /app/models
 # yoloe-26x-seg text-prompt mode needs the mobileclip2_b.ts text encoder asset.
-RUN cd /app/models \
-    && python -c "from ultralytics.utils.downloads import attempt_download_asset; attempt_download_asset('mobileclip2_b.ts')"
+# At runtime Ultralytics resolves it relative to CWD (=/app) and then to
+# SETTINGS["weights_dir"] (="weights" by default → /app/weights). With
+# read_only: true on the vision service, a runtime download would EROFS,
+# so we preload at CWD=/app AND mirror to /app/models for tidiness.
+RUN cd /app \
+    && python -c "from ultralytics.utils.downloads import attempt_download_asset; attempt_download_asset('mobileclip2_b.ts')" \
+    && cp /app/mobileclip2_b.ts /app/models/mobileclip2_b.ts
 RUN cd /app/models \
     && python -c "from ultralytics import YOLO, YOLOE; YOLO('yolo26n.pt'); YOLOE('yoloe-26x-seg.pt')"
 RUN python -c "import open_clip; open_clip.create_model_and_transforms('hf-hub:imageomics/bioclip-2')" \
