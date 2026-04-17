@@ -128,12 +128,15 @@ export class WhatsappClient {
     })
 
     client.on('disconnected', (reason: string) => {
+      this.options.log.warn({ reason }, 'whatsapp disconnected')
       this.lastError = `disconnected: ${reason}`
       this.state = 'error'
       this.inner = null
       this.initializing = false
-      // Attempt one auto-reinit to surface a fresh QR if auth was revoked.
-      setTimeout(() => { void this.start().catch(() => {}) }, 2_000)
+      // No auto-reinit: multiple competing Client instances attached to the
+      // same LocalAuth session race each other and block the `ready` event.
+      // User triggers reconnect manually from the UI (state === 'error' shows
+      // a "Erneut verbinden" button that calls start()).
     })
 
     // The whatsapp-web.js Client narrowly matches ClientHandle
