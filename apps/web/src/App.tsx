@@ -442,9 +442,6 @@ function HomePage() {
             >
               {loading ? 'Erzeuge Session...' : 'Neue Session starten'}
             </button>
-            <a className="secondary-button" href={apiBaseUrl} target="_blank" rel="noreferrer">
-              API pruefen
-            </a>
           </div>
         </div>
 
@@ -1657,6 +1654,10 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
   const speciesMode = detection.speciesMode
   const speciesCandidates = detection.speciesCandidates ?? []
   const speciesRan = speciesMode === 'top3' && speciesCandidates.length > 0
+  const mdHits = detection.megadetectorHits ?? []
+  const mdRan = Boolean(detection.megadetectorRan)
+  const mdAvailable = Boolean(detection.megadetectorAvailable)
+  const mdExtra = detection.megadetectorExtraCount ?? 0
 
   const stageFlow: StageChipProps[] = [
     { name: 'Bewegung', state: motionTriggered ? 'hit' : 'skipped' },
@@ -1676,6 +1677,16 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
         : 'disabled',
     },
     { name: 'BioCLIP', state: speciesRan ? 'hit' : 'skipped' },
+    {
+      name: 'MegaDet',
+      state: !mdAvailable
+        ? 'disabled'
+        : mdRan
+        ? mdHits.length > 0
+          ? 'hit'
+          : 'miss'
+        : 'skipped',
+    },
   ]
 
   return (
@@ -1736,6 +1747,16 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
       ) : null}
 
       {matches ? <p className="muted-copy alert-matches">Treffer: {matches}</p> : null}
+
+      {mdRan && mdHits.length > 0 ? (
+        <p className="muted-copy alert-matches">
+          <strong>MegaDetector:</strong>{' '}
+          {mdHits
+            .map((h) => `${h.label} ${(h.confidence * 100).toFixed(0)}%`)
+            .join(', ')}
+          {mdExtra > 0 ? ` · ${mdExtra} ohne YOLO-Ueberlapp` : ''}
+        </p>
+      ) : null}
 
       {detection.snapshotUrl ? (
         <img

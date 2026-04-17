@@ -38,6 +38,14 @@ export type DetectionResult = {
   }>
   speciesMode?: 'unavailable' | 'disabled' | 'skipped' | 'error' | 'top3'
   speciesModel?: string | null
+  megadetectorRan?: boolean
+  megadetectorAvailable?: boolean
+  megadetectorHits?: Array<{
+    label: string
+    confidence: number
+    bbox: { x1: number; y1: number; x2: number; y2: number }
+  }>
+  megadetectorExtraCount?: number
   snapshotUrl?: string
   createdAt: string
 }

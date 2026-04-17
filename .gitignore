@@ -16,6 +16,7 @@ vision/.venv
 data/snapshots/*
 !data/snapshots/.gitkeep
 data/sessions.json
+data/archive/
 e2e/fixtures/motion.y4m
 test-results
 certs/dev/*

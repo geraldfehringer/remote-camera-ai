@@ -55,6 +55,14 @@ type DetectionResult = {
   }>
   speciesMode?: 'unavailable' | 'disabled' | 'skipped' | 'error' | 'top3'
   speciesModel?: string | null
+  megadetectorRan?: boolean
+  megadetectorAvailable?: boolean
+  megadetectorHits?: Array<{
+    label: string
+    confidence: number
+    bbox: { x1: number; y1: number; x2: number; y2: number }
+  }>
+  megadetectorExtraCount?: number
   snapshotUrl?: string
   createdAt: string
 }
@@ -443,7 +451,12 @@ const envSchema = z.object({
 const env = envSchema.parse(process.env)
 const snapshotsRoot = path.resolve('/app/data/snapshots')
 const sessionsFile = path.resolve('/app/data/sessions.json')
+const archiveRoot = path.resolve('/app/data/archive')
+const archiveEventsFile = path.join(archiveRoot, 'events.jsonl')
 const sessions = new Map<string, Session>()
+
+// (archiveEventSnapshot is defined later — uses `app.log` so it lives
+//  after `const app = Fastify(...)`)
 
 configureLlm({
   provider: env.LLM_PROVIDER,
@@ -462,6 +475,48 @@ const app = Fastify({
   bodyLimit: 6 * 1024 * 1024
 })
 
+// Copy a snapshot + append an event record to the long-term archive.
+// Archive data is NOT subject to session TTL or FIFO eviction; it's a
+// permanent record for later fine-tuning of YOLO26n / BioCLIP on actual
+// garden scenes. Best-effort — a failure here never blocks the mint path.
+async function archiveEventSnapshot(
+  session: Session,
+  event: AlertEvent
+): Promise<void> {
+  if (!event.snapshotUrl) return
+  const fileName = snapshotFileName(event.snapshotUrl)
+  const source = path.join(snapshotsRoot, session.id, fileName)
+  const day = new Date(event.createdAt).toISOString().slice(0, 10)
+  const targetDir = path.join(archiveRoot, day)
+  const targetFile = path.join(targetDir, `${event.id}-${fileName}`)
+  try {
+    await mkdir(targetDir, { recursive: true })
+    const bytes = await readFile(source)
+    await writeFile(targetFile, bytes)
+    const record = {
+      eventId: event.id,
+      sessionId: session.id,
+      createdAt: event.createdAt,
+      triggeredAt: event.triggeredAt,
+      target: event.target,
+      confidence: event.confidence,
+      motionScore: event.motionScore,
+      trackId: event.trackId,
+      species: event.species,
+      speciesCommonName: event.speciesCommonName,
+      speciesConfidence: event.speciesConfidence,
+      snapshotPath: path.relative(archiveRoot, targetFile)
+    }
+    await writeFile(
+      archiveEventsFile,
+      JSON.stringify(record) + '\n',
+      { flag: 'a' }
+    )
+  } catch (err) {
+    app.log.warn({ err, eventId: event.id }, 'archive write failed')
+  }
+}
+
 {
   const providerKeyMap: Record<string, string | undefined> = {
     gemini: env.GOOGLE_API_KEY,
@@ -479,6 +534,7 @@ const app = Fastify({
 }
 
 await mkdir(snapshotsRoot, { recursive: true })
+await mkdir(archiveRoot, { recursive: true })
 await mkdir(path.dirname(sessionsFile), { recursive: true })
 
 await app.register(sensible)
@@ -1147,6 +1203,7 @@ app.post('/api/sessions/:sessionId/detect', async (request) => {
 
     broadcastAlert(session, event)
     await persistSessions()
+    void archiveEventSnapshot(session, event)
     void maybeNarrate(session, event, rawTarget)
   } else {
     await persistSessions()

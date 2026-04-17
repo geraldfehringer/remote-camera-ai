@@ -96,6 +96,28 @@ VISION_SPECIES_TARGETS = {
 }
 VISION_TORCH_THREADS = int(os.getenv("VISION_TORCH_THREADS", "4"))
 
+# MegaDetector v6 (MDv6-c, YOLOv9-c compact) — optional animal-biased parallel
+# detector. Runs alongside YOLO26n on the same frame but does not drive the
+# mint decision; the api surfaces its boxes as a secondary signal so we can
+# A/B its small-animal recall vs YOLO on real garden data.
+VISION_ENABLE_MEGADETECTOR = env_flag("VISION_ENABLE_MEGADETECTOR", True)
+# MegaDetector v5a — YOLOv5-based, 280 MB, detects {animal, person, vehicle}.
+# v6 isn't publicly distributed as a single .pt; PytorchWildlife pulls it
+# via a Python package dependency chain we don't want to pull into the
+# container. v5a is Apache-2.0 and still the best free camera-trap detector
+# we can just download + load with Ultralytics.
+VISION_MEGADETECTOR_MODEL = os.getenv(
+    "VISION_MEGADETECTOR_MODEL", "/models/md_v5a.0.0.pt"
+)
+VISION_MEGADETECTOR_URL = os.getenv(
+    "VISION_MEGADETECTOR_URL",
+    "https://huggingface.co/agentmorris/megadetector/resolve/main/md_v5a.0.0.pt",
+)
+VISION_MEGADETECTOR_IMG_SIZE = int(os.getenv("VISION_MEGADETECTOR_IMG_SIZE", "1280"))
+VISION_MEGADETECTOR_MIN_CONFIDENCE = float(
+    os.getenv("VISION_MEGADETECTOR_MIN_CONFIDENCE", "0.20")
+)
+
 try:
     torch.set_num_threads(VISION_TORCH_THREADS)
     torch.set_num_interop_threads(max(1, VISION_TORCH_THREADS // 2))
@@ -332,6 +354,12 @@ class SpeciesCandidate(BaseModel):
     taxonomyPath: str
 
 
+class MegaDetectorHit(BaseModel):
+    label: str  # 'animal' | 'person' | 'vehicle'
+    confidence: float
+    bbox: BoundingBox
+
+
 class AnalysisResponse(BaseModel):
     targetLabel: str
     motionScore: float
@@ -360,6 +388,10 @@ class AnalysisResponse(BaseModel):
     speciesCandidates: list[SpeciesCandidate] = Field(default_factory=list)
     speciesMode: Literal["unavailable", "disabled", "skipped", "error", "top3"] = "disabled"
     speciesModel: str | None = None
+    megadetectorRan: bool = False
+    megadetectorAvailable: bool = False
+    megadetectorHits: list[MegaDetectorHit] = Field(default_factory=list)
+    megadetectorExtraCount: int = 0  # MD hits not covered by any YOLO box (IoU < 0.3)
     createdAt: str
 
 
@@ -381,6 +413,129 @@ def get_model() -> YOLO:
 @lru_cache(maxsize=1)
 def get_precision_model() -> YOLOE:
     return YOLOE(RESOLVED_VISION_PRECISION_MODEL)
+
+
+_megadetector_model: YOLO | None = None
+_megadetector_init_attempted = False
+_megadetector_class_map = {0: "animal", 1: "person", 2: "vehicle"}
+
+
+def ensure_megadetector_weights() -> Path | None:
+    """Return a local path to the MDv6 weights, downloading on first run.
+
+    Lives in /models (the named `vision-models` docker volume) so a one-time
+    ~60 MB download persists across container restarts and image rebuilds.
+    """
+    target = Path(VISION_MEGADETECTOR_MODEL)
+    if target.is_file():
+        return target
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        logger.exception("megadetector: cannot create parent dir %s", target.parent)
+        return None
+    try:
+        import urllib.request
+
+        logger.info("megadetector: downloading weights from %s", VISION_MEGADETECTOR_URL)
+        urllib.request.urlretrieve(VISION_MEGADETECTOR_URL, str(target))
+        logger.info("megadetector: saved to %s", target)
+        return target
+    except Exception:
+        logger.exception("megadetector: download failed")
+        return None
+
+
+def get_megadetector() -> YOLO | None:
+    global _megadetector_model, _megadetector_init_attempted
+    if not VISION_ENABLE_MEGADETECTOR:
+        return None
+    if _megadetector_init_attempted:
+        return _megadetector_model
+    _megadetector_init_attempted = True
+    weights = ensure_megadetector_weights()
+    if weights is None:
+        return None
+    try:
+        _megadetector_model = YOLO(str(weights))
+    except Exception:
+        logger.exception("megadetector: failed to load %s", weights)
+        _megadetector_model = None
+    return _megadetector_model
+
+
+def run_megadetector(
+    image: np.ndarray, min_confidence: float
+) -> list[dict]:
+    """Run MegaDetector v6 once on a BGR frame.
+
+    Returns list of {label, confidence, bbox: [x1,y1,x2,y2]} sorted by confidence.
+    Synchronous; caller wraps in asyncio.to_thread.
+    """
+    model = get_megadetector()
+    if model is None:
+        return []
+    try:
+        results = model.predict(
+            image,
+            imgsz=VISION_MEGADETECTOR_IMG_SIZE,
+            conf=min_confidence,
+            verbose=False,
+        )
+    except Exception:
+        logger.exception("megadetector: inference failed")
+        return []
+    hits: list[dict] = []
+    for r in results:
+        if r.boxes is None:
+            continue
+        for box in r.boxes:
+            try:
+                cls_idx = int(box.cls.item())
+                conf = float(box.conf.item())
+                xyxy = box.xyxy.squeeze().tolist()
+                if len(xyxy) != 4:
+                    continue
+                label = _megadetector_class_map.get(cls_idx, f"class{cls_idx}")
+                hits.append(
+                    {
+                        "label": label,
+                        "confidence": conf,
+                        "bbox": [float(xyxy[0]), float(xyxy[1]), float(xyxy[2]), float(xyxy[3])],
+                    }
+                )
+            except Exception:
+                continue
+    hits.sort(key=lambda h: h["confidence"], reverse=True)
+    return hits
+
+
+def _iou(a: list[float], b: list[float]) -> float:
+    ax1, ay1, ax2, ay2 = a
+    bx1, by1, bx2, by2 = b
+    ix1 = max(ax1, bx1)
+    iy1 = max(ay1, by1)
+    ix2 = min(ax2, bx2)
+    iy2 = min(ay2, by2)
+    iw = max(0.0, ix2 - ix1)
+    ih = max(0.0, iy2 - iy1)
+    inter = iw * ih
+    area_a = max(0.0, ax2 - ax1) * max(0.0, ay2 - ay1)
+    area_b = max(0.0, bx2 - bx1) * max(0.0, by2 - by1)
+    union = area_a + area_b - inter
+    return inter / union if union > 0 else 0.0
+
+
+def count_md_extras(
+    md_hits: list[dict], yolo_boxes: list[tuple[float, float, float, float]]
+) -> int:
+    """How many MegaDetector boxes don't overlap any YOLO box (IoU < 0.3)."""
+    extras = 0
+    for h in md_hits:
+        hb = h["bbox"]
+        if not any(_iou(hb, list(yb)) >= 0.3 for yb in yolo_boxes):
+            extras += 1
+    return extras
 
 
 def sam3_model_available() -> bool:
@@ -1339,6 +1494,33 @@ async def analyze(
             species_candidates = [SpeciesCandidate(**c.__dict__) for c in raw]
             species_model_id = VISION_SPECIES_MODEL if classifier.available() else None
 
+    # MegaDetector v6 — observational A/B pass. Only run when YOLO did
+    # (motion gate passed / warmup), so we compare apples to apples and
+    # don't burn CPU on still scenes.
+    md_hits_out: list[MegaDetectorHit] = []
+    md_ran = False
+    md_extra = 0
+    md_available = VISION_ENABLE_MEGADETECTOR
+    if VISION_ENABLE_MEGADETECTOR and object_detection_ran:
+        raw_md_hits = await asyncio.to_thread(
+            run_megadetector, image, VISION_MEGADETECTOR_MIN_CONFIDENCE
+        )
+        md_ran = True
+        md_available = get_megadetector() is not None
+        if raw_md_hits:
+            yolo_boxes = [
+                (m.bbox.x1, m.bbox.y1, m.bbox.x2, m.bbox.y2) for m in matched_objects
+            ]
+            md_extra = count_md_extras(raw_md_hits, yolo_boxes)
+            md_hits_out = [
+                MegaDetectorHit(
+                    label=h["label"],
+                    confidence=h["confidence"],
+                    bbox=BoundingBox(x1=h["bbox"][0], y1=h["bbox"][1], x2=h["bbox"][2], y2=h["bbox"][3]),
+                )
+                for h in raw_md_hits[:5]
+            ]
+
     return AnalysisResponse(
         targetLabel=normalized_target,
         motionScore=motion_analysis.score,
@@ -1373,6 +1555,10 @@ async def analyze(
         speciesCandidates=species_candidates,
         speciesMode=species_mode,
         speciesModel=species_model_id,
+        megadetectorRan=md_ran,
+        megadetectorAvailable=md_available,
+        megadetectorHits=md_hits_out,
+        megadetectorExtraCount=md_extra,
         createdAt=np.datetime_as_string(np.datetime64("now"), timezone="UTC"),
     )
 
