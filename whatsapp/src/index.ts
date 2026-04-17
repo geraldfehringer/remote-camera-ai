@@ -10,7 +10,6 @@ import { E164_REGEX } from './types.js'
 const PORT = Number(process.env.PORT ?? 8091)
 const HOST = process.env.HOST ?? '0.0.0.0'
 const AUTH_DIR = process.env.AUTH_DIR ?? '/app/auth'
-const EXECUTABLE_PATH = process.env.PUPPETEER_EXECUTABLE_PATH ?? '/usr/bin/chromium'
 const COOLDOWN_MS = Number(process.env.WA_COOLDOWN_MS ?? 15_000)
 
 const app = Fastify({
@@ -20,7 +19,6 @@ await app.register(sensible)
 
 const client = new WhatsappClient({
   authDir: AUTH_DIR,
-  executablePath: EXECUTABLE_PATH,
   log: app.log,
 })
 
@@ -47,11 +45,15 @@ app.post('/config', async (req, reply) => {
   return client.getSnapshot(next)
 })
 
+app.get('/debug/probe', async () => client.debugProbe())
+
 app.post('/logout', async () => {
   await client.logout()
-  // Wipe LocalAuth dir so the next start() produces a fresh QR.
-  try { await rm(`${AUTH_DIR}/session-remote-camera-ai`, { recursive: true, force: true }) } catch {}
+  // Wipe Baileys auth state so the next start() produces a fresh QR.
+  try { await rm(`${AUTH_DIR}/remote-camera-ai`, { recursive: true, force: true }) } catch {}
   await saveConfig(AUTH_DIR, { enabled: false, recipientE164: null })
+  // Kick off a fresh session so a new QR appears without waiting for a restart.
+  void client.start().catch(() => {})
   return client.getSnapshot(await loadConfig(AUTH_DIR))
 })
 
