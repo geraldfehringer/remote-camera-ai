@@ -38,7 +38,7 @@ COPY --from=builder /app/dist ./dist
 
 # Auth dir mounted as a volume; create a stub so the image starts cleanly
 # even if the volume is empty on first boot.
-RUN mkdir -p /app/auth
+RUN mkdir -p /app/auth && chown node:node /app/auth
 
 USER node
 EXPOSE 8091
