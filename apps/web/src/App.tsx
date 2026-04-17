@@ -12,6 +12,7 @@ import QRCode from 'qrcode'
 import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
 import { useWakeLock } from './hooks/useWakeLock'
 import { useSignaling, type SignalingEnvelopeExtras } from './hooks/useSignaling'
+import { useAlertSound } from './hooks/useAlertSound'
 import {
   createSession,
   getApiBaseUrl,
@@ -728,6 +729,8 @@ function ViewerPage() {
   const [counters, setCounters] = useState<SessionCountersDTO | null>(null)
 
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
+  const seenEventIdsRef = useRef<Set<string>>(new Set())
+  const { muted: alertsMuted, ready: alertsReady, toggleMute: toggleAlertsMute, play: playAlertSound } = useAlertSound()
 
   useEffect(() => {
     if (!sessionId || !token) {
@@ -768,12 +771,24 @@ function ViewerPage() {
         setCounters(nextState.counters)
       }
       if (Array.isArray(nextState.events)) {
+        // Pre-populate seen-ids so the Alert Log backfill doesn't blast
+        // the speakers on reconnect.
+        for (const ev of nextState.events) seenEventIdsRef.current.add(ev.id)
         setAlertEvents(nextState.events.slice(-50).reverse())
       }
     } else if (envelope.type === 'detection') {
       setDetection(envelope.payload as DetectionResult)
     } else if (envelope.type === 'alert') {
       const dto = envelope.payload as AlertEventDTO
+      const isNew = !seenEventIdsRef.current.has(dto.id)
+      if (isNew) {
+        seenEventIdsRef.current.add(dto.id)
+        // Fire audio once per event (initial mint broadcast). Subsequent
+        // LLM patch broadcasts carry the same id → skip.
+        if (!dto.suppressed) {
+          playAlertSound(dto.target)
+        }
+      }
       setAlertEvents((prev) => {
         const idx = prev.findIndex((e) => e.id === dto.id)
         if (idx >= 0) {
@@ -786,7 +801,7 @@ function ViewerPage() {
     } else if (envelope.type === 'error') {
       setError(envelope.payload.message)
     }
-  }, [])
+  }, [playAlertSound])
 
   const { remoteStream, lastError } = useSignaling({
     sessionId: sessionId ?? null,
@@ -867,9 +882,38 @@ function ViewerPage() {
                   : 'Noch keine Zaehlerdaten.'}
               </p>
             </div>
-            <StatusBadge active={alertEvents.length > 0}>
-              {alertEvents.length > 0 ? `${alertEvents.length}` : 'Leer'}
-            </StatusBadge>
+            <div className="alert-log-controls">
+              <button
+                type="button"
+                className={`sound-toggle${alertsMuted ? ' muted' : ''}`}
+                onClick={toggleAlertsMute}
+                aria-pressed={!alertsMuted}
+                title={alertsMuted ? 'Ton einschalten' : 'Ton ausschalten'}
+                data-testid="alert-sound-toggle"
+              >
+                <span className="sound-toggle__icon" aria-hidden="true">
+                  {alertsMuted ? (
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                      <line x1="22" y1="9" x2="16" y2="15" />
+                      <line x1="16" y1="9" x2="22" y2="15" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 5 6 9H2v6h4l5 4V5z" />
+                      <path d="M15.54 8.46a5 5 0 0 1 0 7.07" />
+                      <path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+                    </svg>
+                  )}
+                </span>
+                <span className="sound-toggle__label">
+                  {alertsMuted ? 'Ton aus' : alertsReady ? 'Ton an' : 'Ton – klick zum Aktivieren'}
+                </span>
+              </button>
+              <StatusBadge active={alertEvents.length > 0}>
+                {alertEvents.length > 0 ? `${alertEvents.length}` : 'Leer'}
+              </StatusBadge>
+            </div>
           </div>
           {alertEvents.length === 0 ? (
             <p className="muted-copy">Noch keine Alerts.</p>
