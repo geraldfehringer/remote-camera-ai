@@ -20,6 +20,16 @@ from fastapi import FastAPI, File, Form, UploadFile
 from pydantic import BaseModel, Field
 from ultralytics import YOLO, YOLOE
 from ultralytics.models.sam import SAM3SemanticPredictor
+from ultralytics.utils import SETTINGS as _ULTRALYTICS_SETTINGS
+
+# Point Ultralytics at the baked-in weights dir so attempt_download_asset()
+# for transitive deps (e.g. mobileclip2_b.ts for yoloe-26x-seg text prompts
+# and for SAM 3's text encoder) finds the preloaded files without trying to
+# re-download into the read-only /app filesystem at runtime.
+try:
+    _ULTRALYTICS_SETTINGS["weights_dir"] = "/app/models"
+except Exception:
+    pass
 
 from app.species import SpeciesClassifier, SpeciesCandidate as SpeciesCandidateDataclass
 

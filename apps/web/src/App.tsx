@@ -425,11 +425,12 @@ function HomePage() {
     <main className="page-shell" data-testid="home-page">
       <section className="hero-card">
         <div className="hero-copy">
-          <span className="eyebrow">Android Remote Camera</span>
-          <h1>Zwei Android-Geraete. Ein Mac mini. Alles im Browser.</h1>
+          <span className="eyebrow">Home Camera · Local Network</span>
+          <h1>Ein Telefon als Kamera. Jeder Browser als Viewer.</h1>
           <p>
-            Der Mac mini hostet die Docker-Services lokal. Ein Android-Smartphone fungiert als
-            Kamera-Sender, ein zweites als Viewer fuer Live-Ansicht und Alerts.
+            Ein iOS- oder Android-Telefon streamt seine Kamera per WebRTC an den Mac mini.
+            Jeder Browser im gleichen Heimnetz kann live zuschauen und erhaelt KI-gestuetzte
+            Alerts mit Artbestimmung und Gemini-Beschreibung.
           </p>
           <div className="hero-actions">
             <button
@@ -447,29 +448,30 @@ function HomePage() {
         </div>
 
         <div className="hero-matrix">
-          <Metric title="Deploy" value="Docker Compose" detail="alles lokal auf dem Mac mini" />
-          <Metric title="Sender" value="Android" detail="Rueckkamera im Browser" />
-          <Metric title="Viewer" value="Android" detail="Live-View und Alert-Feed" />
+          <Metric title="Kamera" value="iOS / Android" detail="Rueckkamera im mobilen Browser" />
+          <Metric title="Viewer" value="Jeder Browser" detail="Desktop, Laptop, Tablet im LAN" />
+          <Metric title="Stack" value="Mac mini · Docker" detail="YOLO · YOLOE · SAM 3 · BioCLIP 2 · Gemini" />
         </div>
       </section>
 
       <section className="grid-two">
         <article className="glass-card">
-          <h2>Lokales Setup</h2>
+          <h2>Schnellstart</h2>
           <ol className="ordered-list">
-            <li>Mac mini und beide Android-Smartphones ins gleiche WLAN bringen.</li>
-            <li>`PUBLIC_WEB_URL` und `PUBLIC_API_URL` auf den Mac-mini-Hostnamen oder seine LAN-IP setzen.</li>
-            <li>Session erzeugen und den Camera-Link am Kamera-Smartphone oeffnen.</li>
-            <li>Viewer-Link am zweiten Android-Geraet oeffnen.</li>
+            <li>Telefon und Viewer-Geraet ins gleiche WLAN wie den Mac mini bringen.</li>
+            <li>Auf <strong>Neue Session starten</strong> tippen — zwei Links werden erzeugt.</li>
+            <li>Camera-Link am Telefon oeffnen, Zielobjekt waehlen, Stream starten.</li>
+            <li>Viewer-Link auf irgendeinem Geraet oeffnen — Live-View + Alert-Log erscheinen automatisch.</li>
           </ol>
         </article>
 
         <article className="glass-card">
-          <h2>Empfohlene Defaults</h2>
-          <p>
-            Detection laeuft lokal. Fuer optionale Bildzusammenfassungen ist aktuell
-            <strong> {config?.llmRecommendation.model ?? 'LLM_MODEL'}</strong> als
-            kosteneffizienter Default hinterlegt.
+          <h2>Erkennungs-Pipeline</h2>
+          <p className="muted-copy">
+            Jeder Frame durchlaeuft Motion-Gate → YOLO26n → YOLOE-26x → optional SAM 3.
+            Bei Treffern auf <em>Vogel/Katze/Eichhoernchen</em> klassifiziert BioCLIP 2 die Art.
+            Alert-Minting entpreller per trackId, dann kurze Szenenbeschreibung via {' '}
+            <strong>{config?.llmRecommendation.model ?? 'Gemini 3.1 Flash Lite'}</strong>.
           </p>
           <p className="muted-copy">{config?.llmRecommendation.note}</p>
         </article>
@@ -477,20 +479,23 @@ function HomePage() {
 
       <section className="grid-two">
         <article className="glass-card">
-          <h2>LLM-Kostenkontrolle</h2>
+          <h2>LLM-Verbrauch</h2>
           <p className="muted-copy">
-            Diese Anzeige zeigt transparent, ob Motion Detection aktuell externes LLM-Budget verbraucht.
+            Pro Alert laeuft ein LLM-Call mit Bild und Kontext. Stuendliches und
+            Session-Budget schuetzen vor Runaway-Kosten.
           </p>
           <LlmUsagePanel usage={config?.llmUsage} recommendation={config?.llmRecommendation} />
         </article>
 
         <article className="glass-card">
-          <h2>Token Guardrail</h2>
+          <h2>Lokal zuerst</h2>
           <p className="muted-copy">
-            Solange Motion Detection lokal bleibt, muessen hier fuer Prompt, Completion und Total Tokens jeweils <strong>0</strong> stehen.
+            Motion, Objekt- und Arterkennung laufen komplett lokal im Vision-Container.
+            LLM wird nur fuer die kurze Text-Zusammenfassung ausgeloester Alerts aufgerufen —
+            nie fuer jedes Einzelbild.
           </p>
           <p className="muted-copy">
-            Erst wenn spaeter optionale Event-Beschreibungen per LLM dazukommen, duerfen diese Zaehler ansteigen.
+            Fuer <code>LLM_PROVIDER=stub</code> bleiben alle Token-Zaehler auf <strong>0</strong>.
           </p>
         </article>
       </section>
@@ -516,7 +521,7 @@ function HomePage() {
             <div>
               <h2>LAN-Diagnose</h2>
               <p className="muted-copy">
-                Prueft exakt den Browserpfad, den spaeter auch Kamera- und Viewer-Android nutzen.
+                Prueft exakt den Browserpfad, den auch Kamera-Telefon und Viewer-Browser nutzen.
               </p>
             </div>
             <StatusBadge active={!diagnosticsRunning}>Netz</StatusBadge>
@@ -562,17 +567,17 @@ function HomePage() {
         </article>
 
         <article className="glass-card">
-          <h2>Browser-Ziel fuer Android</h2>
+          <h2>Browser-Ziel</h2>
           <p className="muted-copy">
-            Beide Android-Geraete sollen nur das Frontend auf dem Mac mini oeffnen. API und
-            Signaling laufen danach intern ueber denselben Host.
+            Oeffne diesen Host sowohl auf dem Kamera-Telefon als auch auf dem Viewer-Geraet —
+            API und Signaling laufen danach intern ueber denselben Mac mini.
           </p>
           <p className="session-link" data-testid="lan-target">
             {config?.publicWebUrl ?? 'PUBLIC_WEB_URL fehlt'}
           </p>
           <p className="muted-copy">
-            Falls <code>macmini.local</code> auf Android nicht aufgeloest wird, verwendet direkt
-            die LAN-IP des Mac mini mit demselben Port.
+            Falls <code>macmini.local</code> auf dem Telefon nicht aufgeloest wird, verwende die
+            LAN-IP des Mac mini auf demselben Port.
           </p>
         </article>
       </section>
@@ -584,7 +589,7 @@ function HomePage() {
           <article className="glass-card">
             <h2>Camera Link</h2>
             <p className="muted-copy">
-              Diesen Link auf dem Android-Handy oeffnen, das als Remote-Kamera dient.
+              Diesen Link auf dem iOS- oder Android-Telefon oeffnen, das als Kamera dienen soll.
             </p>
             <a
               className="session-link"
@@ -601,7 +606,7 @@ function HomePage() {
           <article className="glass-card">
             <h2>Viewer Link</h2>
             <p className="muted-copy">
-              Diesen Link auf dem zweiten Android-Geraet oder alternativ auf Tablet/Desktop oeffnen.
+              In jedem Browser im Heimnetz oeffnen — Laptop, Desktop, Tablet oder zweitem Telefon.
             </p>
             <a
               className="session-link"
