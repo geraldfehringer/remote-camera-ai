@@ -1,129 +1,103 @@
 # Remote Camera AI
 
-WebRTC remote-camera app: one Android phone streams its rear camera into a browser; a second device views the live stream; a local vision pipeline (YOLO26n → tracking → ROI refinement → YOLOE-26x → optional SAM 3) triggers alerts on target objects (default `bird`). All services run locally via `docker compose`.
+WebRTC remote-camera app: a phone streams its rear camera, a browser viewer watches, a local vision pipeline (YOLO26n → tracking → ROI → YOLOE-26x → optional SAM 3 → BioCLIP 2) triggers alerts on target objects. Alerts broadcast over WS, append to a per-session log, get narrated by an LLM (Gemini 3.1 Flash Lite), and push to WhatsApp via a Baileys sidecar. All services run locally via `docker compose`.
 
 ## Services (docker-compose.yml)
 
-| Service  | Build context | Ports (host → container)                                  | Notes |
-|----------|---------------|-----------------------------------------------------------|-------|
-| `web`    | `apps/web/`   | `3000→8080` (http), `443→8443`, `3443→8443` (https)       | nginx; reverse-proxies `/api` and `/ws` to `api:8080`. `read_only`. |
-| `api`    | `server/`     | `8080→8080`                                               | Fastify 5 + WebSocket signaling. Healthcheck on `/api/health`. `read_only` + `tmpfs:/tmp`. |
-| `vision` | `vision/`     | internal only (`8090`)                                    | FastAPI + Ultralytics. Mounts `./vision/models:/app/extra-models:ro` for optional `sam3.pt`. |
-| `coturn` | image         | `3478/tcp+udp`, `49160-49200/udp`                          | WebRTC TURN fallback. |
-| `whatsapp` | `whatsapp/`   | internal only (`8091`)                                    | Fastify + whatsapp-web.js + headless Chromium. Mounts `./data/whatsapp-auth`. Alerts are push-on-mint via `POST /send`. |
+| Service    | Build          | Ports                                     | Notes |
+|------------|----------------|-------------------------------------------|-------|
+| `web`      | `apps/web/`    | `3000→8080`, `443→8443`, `3443→8443`      | nginx; proxies `/api` + `/ws` → api. `read_only`. |
+| `api`      | `server/`      | `8080→8080`                               | Fastify 5 + @fastify/websocket. `read_only` + `tmpfs:/tmp`. |
+| `vision`   | `vision/`      | internal only (`8090`)                    | FastAPI + Ultralytics. Mounts `./vision/models:/app/extra-models:ro`. |
+| `whatsapp` | `whatsapp/`    | internal only (`8091`)                    | Fastify + **@whiskeysockets/baileys** (no Chromium). Mounts `./data/whatsapp-auth`. |
+| `coturn`   | image          | `3478/tcp+udp`, `49160-49200/udp`         | TURN fallback; empty by default for LAN. |
 
-Network name: `remote-camera-ai`. Only `web`, `api`, and `coturn` are reachable from host; `vision` is internal.
+Network `remote-camera-ai`. Only `web`, `api`, `coturn` are exposed to the host.
 
 ## Commands
 
 ```bash
-# Primary: LAN profile (macmini.local)
+# LAN profile (macmini.local)
 docker compose up --build
 
-# Docker Desktop / localhost profile (smoke tests, Playwright)
+# Docker Desktop / localhost (Playwright + smoke)
 docker compose --env-file .env.docker-desktop.example up -d --build
 
-# Stop
-docker compose down
-
-# Generate dev HTTPS certs for LAN (required for Android camera)
+# Dev HTTPS certs (Android getUserMedia requires HTTPS)
 ./scripts/generate-dev-cert.sh <lan-ip> [hostname]
-# e.g. ./scripts/generate-dev-cert.sh 192.168.178.39 macmini.local
-# Writes into certs/dev/; web container mounts them read-only.
 
-# E2E (stack must be up on the Desktop profile first)
-npm install
-npm run test:e2e   # generates e2e/fixtures/motion.y4m then runs playwright
+# E2E (Desktop profile must be up)
+npm install && npm run test:e2e
 
-# Per-service dev (outside Docker)
-# server:  cd server && npm run dev      # tsx watch src/index.ts
-# server:  cd server && npm run build    # tsc
-# web:     cd apps/web && npm run dev    # vite
-# web:     cd apps/web && npm run build  # tsc -b && vite build
-# web:     cd apps/web && npm run lint
-# vision:  cd vision && uvicorn app.main:app --host 0.0.0.0 --port 8090
+# Per-service dev outside Docker
+# server:   cd server && npm run dev / build
+# web:      cd apps/web && npm run dev / build / lint
+# vision:   cd vision && uvicorn app.main:app --host 0.0.0.0 --port 8090
+# whatsapp: cd whatsapp && npm run dev
 ```
 
-No unit tests anywhere — only the Playwright spec at `e2e/remote-camera.spec.mjs`. Don't claim "tests pass" without running `npm run test:e2e`.
+No unit tests. Only Playwright at `e2e/remote-camera.spec.mjs`. Don't claim "tests pass" without running `npm run test:e2e`.
 
 ## Repo layout
 
 ```
-apps/web/       React 19 + Vite + TS + React Router 7, served by nginx in prod
-  src/App.tsx               monolith, ~2018 lines: HomePage / CameraPage / ViewerPage
-  src/lib/api.ts            HTTP + WS client; resolves API base from VITE_API_BASE_URL or window.origin
-  src/hooks/useWakeLock.ts
-  nginx.conf                proxies /api and /ws → api:8080; HTTPS on 8443
+apps/web/       React 19 + Vite + TS + React Router 7
+  src/App.tsx                ~2000 lines: HomePage / CameraPage / ViewerPage / AlertCard
+  src/components/WhatsappCard.tsx
+  src/hooks/{useWakeLock,useAlertSound,useWhatsappStatus}.ts
+  src/lib/{api,whatsappApi,types}.ts
+  nginx.conf                 proxies /api + /ws → api:8080; HTTPS on 8443
 server/         Fastify 5 + @fastify/websocket
-  src/index.ts              monolith, ~807 lines: env schema, session store, REST, WS signaling
-  src/llm/                  empty — LLM integration is stubbed (see Gotchas)
-vision/         FastAPI + OpenCV + Ultralytics
-  app/main.py               monolith, ~1261 lines: full detection pipeline
-  models/                   optional drop-in for sam3.pt; mounted as /app/extra-models
-  requirements.txt, Dockerfile (CPU PyTorch wheels)
-e2e/            Playwright spec + fake-video generator (Y4M, moving square)
-scripts/        generate-dev-cert.sh
-certs/dev/      local-ca + web cert/key (gitignored; regenerated by script)
-config/coturn/  (empty placeholder)
-data/           mounted into api: sessions.json + snapshots/<session>/*.jpg
-docker-compose.yml, .env.example, .env.docker-desktop.example
-playwright.config.mjs  (uses baseURL https://127.0.0.1, ignores TLS)
+  src/index.ts               env schema, session store, REST, WS signaling, alert mint
+  src/whatsapp.ts            WhatsApp proxy routes + dispatchAlert helper
+  src/llm/                   Gemini / Claude / OpenAI / Together narration
+vision/         FastAPI + Ultralytics
+  app/main.py                ~1260 lines: full detection pipeline
+  models/                    optional sam3.pt drop-in
+whatsapp/       Baileys sidecar — Node-slim, no Chromium
+  src/{index,client,config,rateLimit,types}.ts
+e2e/            Playwright spec + Y4M fake-video generator
+data/           sessions.json · snapshots/ · archive/ · whatsapp-auth/
+.env.example    sanitized reference (tracked); .env and *.example are local-only (gitignored)
 ```
 
 ## Environment
 
-Two env profiles live as examples, both gitignored:
+- `.env.example` — sanitized reference, **committed**. Copy to `.env` and fill real values.
+- `.env` and `.env.docker-desktop.example` — gitignored, local-only.
 
-- `.env.example` → LAN profile, points at `macmini.local`
-- `.env.docker-desktop.example` → localhost, used for smoke tests and Playwright
+Key variables:
+- `PUBLIC_WEB_URL` / `PUBLIC_API_URL` / `WEB_ORIGIN` — must match how clients reach the stack; CORS allowlist = `[WEB_ORIGIN, PUBLIC_WEB_URL]`.
+- `ICE_STUN_URLS` / `ICE_TURN_URLS` — empty TURN is fine on LAN.
+- `VISION_*` — 25+ knobs; defaults live in both `docker-compose.yml` and `vision/app/main.py`.
+- `LLM_PROVIDER` / `LLM_MODEL` / `<PROVIDER>_API_KEY` — populate only the key matching the provider.
+- `WHATSAPP_ENABLED` / `WHATSAPP_SERVICE_URL` / `WHATSAPP_COOLDOWN_MS` — no admin token; LAN-only QR onboarding.
+- `VITE_API_BASE_URL` — **build-time** ARG; change requires `docker compose build web`, not just restart. Empty string falls back to `window.location.origin` (works behind the nginx proxy).
 
-Copy one to `.env` (LAN) or pass via `--env-file` (Desktop). Key variables:
+## Gotchas
 
-- `PUBLIC_WEB_URL`, `PUBLIC_API_URL`, `WEB_ORIGIN` — must match how clients hit the stack; session links are minted from `WEB_ORIGIN` (CORS allowlist is `[WEB_ORIGIN, PUBLIC_WEB_URL]`).
-- `ICE_STUN_URLS`, `ICE_TURN_URLS`, `TURN_USERNAME`, `TURN_PASSWORD`, `TURN_EXTERNAL_IP` — must match coturn command args in `docker-compose.yml:122-134`.
-- `VISION_*` — 25+ knobs for pipeline tuning (motion gate, ROI, precision verifier, SAM3). Defaults in both the compose file and `vision/app/main.py:37-69`.
-- `LLM_PROVIDER`, `LLM_MODEL` — **required by server env schema but never used** (see Gotchas).
-- `VITE_API_BASE_URL` is a **build-time ARG** for the web container. Changing it requires `docker compose build web`, not just a restart.
+1. **Tokens travel in URL query strings** (`/ws?token=…`, `GET /api/sessions/:id?token=…`, snapshots). Visible in logs/referrer/history. Not suitable for public deployment as-is.
+2. **`POST /api/sessions` returns both camera + viewer tokens** in the response body — intentional for current homepage UX.
+3. **HTTPS mandatory for `getUserMedia()` on Android**, not on localhost. LAN flow: load `http://<ip>:3000/local-ca.crt`, trust it on Android, then use `https://<ip>`.
+4. **Containers are `read_only` + `tmpfs:/tmp`** (web, api, vision). Writes outside `/tmp` or mounted volumes fail silently.
+5. **`sam3.pt` is optional.** Drop at `vision/models/sam3.pt`; pipeline auto-detects. Without it, YOLOE-26x is the strongest verifier.
+6. **`VISION_TARGET_LABEL` accepts German aliases** (`Vogel` → `bird`, etc.); mapping in `apps/web/src/App.tsx` + `vision/app/main.py`.
+7. **`data/whatsapp-auth/` is authoritative WhatsApp state.** `POST /api/whatsapp/logout` wipes the Baileys subdir; deleting the whole folder forces a fresh pair.
+8. **Baileys needs the current WA protocol version at startup** via `fetchLatestBaileysVersion()`; the library's bundled baseline ages and gets rejected with `code 405 Connection Failure` if not refreshed. Handled in `whatsapp/src/client.ts`.
+9. **Fastify 5 rejects empty body + `content-type: application/json`** with `FST_ERR_CTP_EMPTY_JSON_BODY`. Any proxy helper must only set the header when a body is actually present. Bit us in `server/src/whatsapp.ts` on `/logout`.
+10. **Shared Docker daemon.** Other stacks (`svai-cms-*`, etc.) run on this host — avoid global `docker compose down` without scoping.
 
-## Gotchas (the stuff you'll otherwise rediscover the hard way)
-
-1. **Real-looking API keys in `.env.example` and `.env.docker-desktop.example`.** They're gitignored, but they look live (OpenAI, Google, Anthropic, Together). Treat them as compromised and rotate before any public commit. Replace with placeholders in the example files.
-2. **LLM integration is stubbed.** `server/src/llm/` is empty, `llmUsage` is always zero, none of `OPENAI_API_KEY` / `GOOGLE_API_KEY` / `ANTHROPIC_API_KEY` / `TOGETHER_API_KEY` are read anywhere in `server/src/`. The env schema still demands `LLM_PROVIDER` + `LLM_MODEL` to boot.
-3. **Tokens travel in URL query strings** (`/ws?token=…`, `GET /api/sessions/:id?token=…`, snapshot downloads). Visible in logs, referrer headers, browser history. Do not claim "auth is secure" without changing this.
-4. **`POST /api/sessions` returns both tokens in the response body** (`server/src/index.ts:613-633`). Any client that hits the endpoint gets both camera and viewer tokens — intentional for the current homepage UX.
-5. **Sessions have no TTL.** `data/sessions.json` grows forever; same for `session_states` dict in `vision/app/main.py:100`. Expect leaks in long-running deployments.
-6. **HTTPS is mandatory for `getUserMedia()` on Android**, not on localhost. The LAN workflow expects the user to load `http://<ip>:3000/local-ca.crt`, install it as a trusted CA on Android, then use `https://<ip>`. `scripts/generate-dev-cert.sh` produces the certs; `certs/dev/` is gitignored.
-7. **`VITE_API_BASE_URL` is baked into the web image at build time.** If you change it, `docker compose build web` (not just restart). The runtime fallback is `window.location.origin`, so leaving it empty usually works when the nginx proxy is in front.
-8. **Web container is `read_only` with `tmpfs:/tmp`.** Same for `api` and `vision`. Anything writing outside `/tmp` or a mounted volume fails silently or crashes.
-9. **Only `/app/data` is persistent** for the api container (sessions + snapshots). Anything else is ephemeral.
-10. **`sam3.pt` is optional.** Drop it at `vision/models/sam3.pt`; `vision/app/main.py:342-343` detects it and enables the SAM 3 verifier. If missing, SAM 3 stage returns a stub and YOLOE-26x remains the strongest verifier.
-11. **`VISION_TARGET_LABEL` accepts German aliases** (e.g. `Vogel` → `bird`); see `apps/web/src/App.tsx:168-241` on the client and `vision/app/main.py:409-533` on the server.
-12. **Build-time model preload quirk:** `vision/Dockerfile` preloads `yolo11n.pt` but only `yolo26n.pt` is actually used at runtime — dead weight, safe to remove when touching that Dockerfile.
-13. **Local services context.** All Docker containers currently run on Docker Desktop on this machine. Other stacks share the daemon (`svai-cms-*`, etc.) — avoid global `docker compose down` commands without scoping.
-14. **`data/whatsapp-auth/` is the authoritative WhatsApp state.** Deleting it forces a re-scan. `POST /api/whatsapp/logout` wipes the session dir but leaves the folder so the container keeps starting cleanly.
-
-## Known sharp edges (from the last code review)
-
-Short list of bugs to be aware of — full details in review notes:
-
-- `vision/app/main.py:100` — unbounded `session_states` dict (memory leak).
-- `server/src/index.ts` — `fetch(VISION_SERVICE_URL/analyze)` has no explicit timeout.
-- `apps/web/src/App.tsx:806,1168` — `ws.onmessage` does `JSON.parse` without try/catch.
-- `apps/web/src/App.tsx:768` — `addIceCandidate` has no `.catch()`.
-- `vision/app/main.py:954-955,1006-1007` — SAM 3 errors are swallowed silently.
-- `server/src/index.ts:343-349` — socket send errors are silently swallowed; orphaned sockets stay in `session.sockets` until a close event.
-
-## Signaling & REST (quick reference)
+## Signaling & REST
 
 - `GET /api/health` — liveness.
-- `GET /api/config` — returns `iceServers`, default target label/confidence/motion, vision runtime flags.
-- `POST /api/sessions` — creates session, returns `{ sessionId, cameraUrl, viewerUrl, cameraToken, viewerToken }`.
-- `GET /api/sessions/:id?token=…` — session state + fresh links.
-- `POST /api/sessions/:id/detect` (multipart, header `x-session-token`) — forwards frame to `vision:/analyze`, broadcasts detection over WS.
-- `GET /api/sessions/:id/snapshots/:file?token=…` — serves saved snapshot.
-- `GET /ws?sessionId=…&role=camera|viewer&token=…` — signaling. Message types: `session-state`, `peer-ready`, `offer`, `answer`, `candidate`, `detection`, `error`. Server forwards peer messages to the opposite role; no SDP/ICE validation.
+- `GET /api/config` — ICE servers, default target/confidence/motion, vision flags.
+- `POST /api/sessions` — `{ sessionId, cameraUrl, viewerUrl, cameraToken, viewerToken }`.
+- `GET /api/sessions/:id?token=…` — state + fresh links.
+- `POST /api/sessions/:id/detect` (multipart, `x-session-token`) — forwards to `vision:/analyze`, broadcasts detection + minted alert.
+- `GET /api/sessions/:id/snapshots/:file?token=…` — saved snapshot.
+- `GET /ws?sessionId=…&role=camera|viewer&token=…` — signaling. Types: `session-state`, `peer-ready`, `offer`, `answer`, `candidate`, `detection`, `alert`, `error`.
+- `GET|POST /api/whatsapp/{status,config,logout,test}` — proxy to sidecar.
 
-Vision service (`http://vision:8090`, internal):
-- `GET /health`
-- `GET /runtime` — reports which models are loaded + whether SAM 3 is available.
-- `POST /analyze` (multipart: `file`, `session_id`, `target_label`, `min_confidence`, `motion_threshold`).
+Vision (`http://vision:8090`, internal): `GET /health`, `GET /runtime`, `POST /analyze` (multipart).
+
+WhatsApp sidecar (`http://whatsapp:8091`, internal): `GET /health`, `GET /status`, `GET /debug/probe`, `POST /config|/logout|/send`.
