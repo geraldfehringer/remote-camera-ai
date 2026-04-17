@@ -921,3 +921,72 @@ code {
     min-height: 15rem;
   }
 }
+
+.whatsapp-card .wa-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  background: #2a2f36;
+  color: #ddd;
+}
+.whatsapp-card .wa-badge--ready { background: #1e4d2b; color: #bfe9c6; }
+.whatsapp-card .wa-badge--qr { background: #4b3b1f; color: #ffdfa0; }
+.whatsapp-card .wa-badge--error { background: #5a1f1f; color: #ffbcbc; }
+
+.whatsapp-card .qr-tile {
+  display: flex;
+  justify-content: center;
+  padding: 0.75rem;
+  background: #fff;
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+.whatsapp-card .qr-tile img {
+  max-width: 260px;
+  width: 100%;
+  height: auto;
+}
+
+.whatsapp-card .wa-toggle {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+.whatsapp-card .wa-toggle label {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+.whatsapp-card .form-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.whatsapp-card .form-row input[type='tel'],
+.whatsapp-card .form-row input[type='password'] {
+  flex: 1 1 180px;
+  min-width: 180px;
+}
+.whatsapp-card .card__hint--small { opacity: 0.7; font-size: 0.8rem; }
+.whatsapp-card .card__flash {
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #2a2f36;
+  border-radius: 6px;
+  color: #ddd;
+  font-size: 0.85rem;
+}
+.wa-stage-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: #1e4d2b;
+  color: #bfe9c6;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
