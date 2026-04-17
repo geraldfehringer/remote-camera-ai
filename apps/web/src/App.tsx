@@ -13,6 +13,7 @@ import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
 import { useWakeLock } from './hooks/useWakeLock'
 import { useSignaling, type SignalingEnvelopeExtras } from './hooks/useSignaling'
 import { useAlertSound } from './hooks/useAlertSound'
+import { useWhatsappStatus } from './hooks/useWhatsappStatus'
 import {
   createSession,
   getApiBaseUrl,
@@ -305,6 +306,7 @@ function HomePage() {
   const [diagnostics, setDiagnostics] = useState<DiagnosticsState>(initialDiagnostics)
   const [diagnosticsRunning, setDiagnosticsRunning] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const { status: whatsappStatus } = useWhatsappStatus(true)
 
   useEffect(() => {
     void readConfig()
@@ -540,6 +542,12 @@ function HomePage() {
                 </p>
               </div>
             </li>
+            {whatsappStatus?.enabled && whatsappStatus.state === 'ready' && (
+              <li className="pipeline-stage pipeline-stage--whatsapp">
+                <span className="wa-stage-badge">WhatsApp</span>
+                <small>Alert an dein Handy</small>
+              </li>
+            )}
           </ol>
 
           <div className="pipeline-footer muted-copy">
@@ -1671,6 +1679,7 @@ function Metric(props: { title: string; value: string; detail: string }) {
 }
 
 function AlertCard({ detection }: { detection: DetectionResult }) {
+  const { status: whatsappStatus } = useWhatsappStatus(true)
   const matches = useMemo(() => {
     if (detection.matchedObjects.length === 0) {
       return 'Kein passendes Zielobjekt gefunden'
@@ -1807,6 +1816,11 @@ function AlertCard({ detection }: { detection: DetectionResult }) {
           alt="Snapshot beim Detection-Trigger"
         />
       ) : null}
+      <p className="alert-card__whatsapp card__hint card__hint--small">
+        {whatsappStatus?.enabled && whatsappStatus.state === 'ready'
+          ? `WhatsApp: aktiv → ${whatsappStatus.recipientE164 ?? ''}`
+          : 'WhatsApp: nicht aktiv'}
+      </p>
     </div>
   )
 }
