@@ -10,6 +10,7 @@ WebRTC remote-camera app: one Android phone streams its rear camera into a brows
 | `api`    | `server/`     | `8080→8080`                                               | Fastify 5 + WebSocket signaling. Healthcheck on `/api/health`. `read_only` + `tmpfs:/tmp`. |
 | `vision` | `vision/`     | internal only (`8090`)                                    | FastAPI + Ultralytics. Mounts `./vision/models:/app/extra-models:ro` for optional `sam3.pt`. |
 | `coturn` | image         | `3478/tcp+udp`, `49160-49200/udp`                          | WebRTC TURN fallback. |
+| `whatsapp` | `whatsapp/`   | internal only (`8091`)                                    | Fastify + whatsapp-web.js + headless Chromium. Mounts `./data/whatsapp-auth`. Alerts are push-on-mint via `POST /send`. |
 
 Network name: `remote-camera-ai`. Only `web`, `api`, and `coturn` are reachable from host; `vision` is internal.
 
@@ -99,6 +100,7 @@ Copy one to `.env` (LAN) or pass via `--env-file` (Desktop). Key variables:
 11. **`VISION_TARGET_LABEL` accepts German aliases** (e.g. `Vogel` → `bird`); see `apps/web/src/App.tsx:168-241` on the client and `vision/app/main.py:409-533` on the server.
 12. **Build-time model preload quirk:** `vision/Dockerfile` preloads `yolo11n.pt` but only `yolo26n.pt` is actually used at runtime — dead weight, safe to remove when touching that Dockerfile.
 13. **Local services context.** All Docker containers currently run on Docker Desktop on this machine. Other stacks share the daemon (`svai-cms-*`, etc.) — avoid global `docker compose down` commands without scoping.
+14. **`data/whatsapp-auth/` is the authoritative WhatsApp state.** Deleting it forces a re-scan. `POST /api/whatsapp/logout` wipes the session dir but leaves the folder so the container keeps starting cleanly.
 
 ## Known sharp edges (from the last code review)
 

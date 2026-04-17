@@ -134,6 +134,16 @@ npm run test:e2e
 - Detection-Details im UI, inkl. Praezisions-Verifier-Modell, Modus und verwendetem Prompt
 - Detection-Details im UI, inkl. SAM-3-Verfuegbarkeit, Modell, Modus und Prompt
 
+### WhatsApp alerts
+
+A new sidecar service (`whatsapp`) runs a headless Chromium + whatsapp-web.js
+session. On first boot open the homepage and scan the QR code with your
+phone (WhatsApp → Einstellungen → Verknüpfte Geräte). Enter a recipient
+phone number in E.164 format (`+49…`) and toggle alerts on. After that every
+minted alert is pushed to that number as a short text. Auth persists in
+`./data/whatsapp-auth`. Set `WHATSAPP_ADMIN_TOKEN` in `.env` — the web UI
+asks for it once and stores it locally.
+
 ## Grenzen der reinen Web-Loesung
 
 - HTTPS ist fuer `getUserMedia()` ausserhalb von `localhost` Pflicht.
