@@ -33,7 +33,7 @@ services:
       PUBLIC_API_URL: ${PUBLIC_API_URL:-http://macmini.local:8080}
       WEB_ORIGIN: ${WEB_ORIGIN:-http://macmini.local:3000}
       ICE_STUN_URLS: ${ICE_STUN_URLS:-stun:stun.l.google.com:19302}
-      ICE_TURN_URLS: ${ICE_TURN_URLS:-turn:macmini.local:3478?transport=udp,turn:macmini.local:3478?transport=tcp}
+      ICE_TURN_URLS: ${ICE_TURN_URLS-}
       TURN_USERNAME: ${TURN_USERNAME:-remotecam}
       TURN_PASSWORD: ${TURN_PASSWORD:-change-me-now}
       VISION_SERVICE_URL: ${VISION_SERVICE_URL:-http://vision:8090}

@@ -1664,8 +1664,8 @@ async function probeTurnRelay(config: AppConfig | null): Promise<DiagnosticEntry
 
   if (turnUrls.length === 0) {
     return {
-      status: 'warning',
-      detail: 'Kein TURN-Server konfiguriert. Im selben WLAN klappt WebRTC oft trotzdem direkt.',
+      status: 'ok',
+      detail: 'Kein TURN konfiguriert. Im Heimnetz genuegt STUN — TURN ist nur fuer Extern-Zugriff noetig.',
     }
   }
 
