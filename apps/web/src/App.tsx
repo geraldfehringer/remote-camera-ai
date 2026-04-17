@@ -454,6 +454,92 @@ function HomePage() {
         </div>
       </section>
 
+      <section className="grid-full">
+        <article className="glass-card pipeline-card">
+          <div className="card-header">
+            <div>
+              <h2>So erkennt das System Tiere am Fenster</h2>
+              <p className="muted-copy">
+                Jedes Bild aus dem Kamera-Stream durchlaeuft sechs Stufen.
+                Die ersten vier laufen komplett auf dem Mac mini — ohne Cloud.
+                Erst fuer die kurze Text-Beschreibung eines Alerts wird ein LLM aufgerufen.
+              </p>
+            </div>
+            <StatusBadge active>6-Stufen-Pipeline</StatusBadge>
+          </div>
+
+          <ol className="pipeline-grid">
+            <li className="pipeline-step">
+              <span className="pipeline-index">1</span>
+              <div>
+                <h3>Bewegungs-Gate</h3>
+                <p className="muted-copy">
+                  Vergleicht aufeinander folgende Frames. Bleibt die Szene still, wird alles
+                  Weitere uebersprungen — spart Rechenzeit und Akku am Telefon.
+                </p>
+              </div>
+            </li>
+            <li className="pipeline-step">
+              <span className="pipeline-index">2</span>
+              <div>
+                <h3>YOLO 26n · Schnelle Objekterkennung</h3>
+                <p className="muted-copy">
+                  Sucht in wenigen Millisekunden nach 80 COCO-Klassen (Vogel, Katze, Person ...).
+                  Ist ein Kandidat im Bild, gibt es Koordinaten + Konfidenz weiter.
+                </p>
+              </div>
+            </li>
+            <li className="pipeline-step">
+              <span className="pipeline-index">3</span>
+              <div>
+                <h3>YOLOE 26x · Gezielte Nachpruefung</h3>
+                <p className="muted-copy">
+                  Schneidet die Kandidaten-Region aus und pruft sie in hoeherer Aufloesung per
+                  Text-Prompt ("bird", "cat", "squirrel"). Filtert viele falsche Treffer heraus.
+                </p>
+              </div>
+            </li>
+            <li className="pipeline-step">
+              <span className="pipeline-index">4</span>
+              <div>
+                <h3>SAM 3 · Praezise Segmentierung</h3>
+                <p className="muted-copy">
+                  Metas Segment-Anything-Model zeichnet die tatsaechliche Silhouette des Tieres nach.
+                  Das schuetzt vor Blaetter-, Schatten- und Reflexions-Fehlalarmen.
+                </p>
+              </div>
+            </li>
+            <li className="pipeline-step">
+              <span className="pipeline-index">5</span>
+              <div>
+                <h3>BioCLIP 2 · Artbestimmung</h3>
+                <p className="muted-copy">
+                  Fuer Vogel, Katze, Eichhoernchen vergleicht das Modell den Ausschnitt gegen
+                  eine kuratierte Mitteleuropa-Liste (172 Arten) und liefert Top-3 Kandidaten
+                  mit lateinischem und deutschem Namen.
+                </p>
+              </div>
+            </li>
+            <li className="pipeline-step pipeline-step--llm">
+              <span className="pipeline-index">6</span>
+              <div>
+                <h3>Gemini 3.1 Flash Lite · Szenen-Beschreibung</h3>
+                <p className="muted-copy">
+                  Nur bei einem tatsaechlich ausgeloesten Alert wird ein LLM aufgerufen —
+                  es schreibt einen kurzen Satz auf Deutsch und markiert offensichtliche
+                  Fehlalarme (Schatten, Lichtwechsel) als unterdrueckt.
+                </p>
+              </div>
+            </li>
+          </ol>
+
+          <div className="pipeline-footer muted-copy">
+            Zwischen Stufe 2 und 6 liegt je nach Szene ~0.5-15 s. Debounce pro trackId verhindert,
+            dass derselbe Vogel innerhalb von 15 s mehrfach einen Alert ausloest.
+          </div>
+        </article>
+      </section>
+
       <section className="grid-two">
         <article className="glass-card">
           <h2>Schnellstart</h2>

@@ -264,6 +264,24 @@ const SWEEP_INTERVAL_MS = 10 * 60 * 1000
 const VISION_ALERT_COOLDOWN_MS = Number(process.env.VISION_ALERT_COOLDOWN_MS ?? 15_000)
 const VISION_ALERT_NOTRACK_COOLDOWN_MS = Number(process.env.VISION_ALERT_NOTRACK_COOLDOWN_MS ?? 60_000)
 
+// Per-target detection profiles. YOLO26n's behaviour depends heavily on the
+// target: small fast birds need permissive motion + confidence (they're tiny
+// and only in frame briefly); humans are large and clear (stricter thresholds
+// cut false positives); squirrels freeze and dart so motion-sensitive but need
+// leeway on YOLO confidence because motion blur tanks scores.
+//
+// These override the client-sent form values for these two knobs so the UX
+// stays "just pick a target". Other knobs (img_size, detect_every_n_frames)
+// remain vision-container env because they influence per-session state.
+type TargetProfile = { minConfidence: number; motionThreshold: number }
+const TARGET_PROFILES: Record<string, TargetProfile> = {
+  bird:         { minConfidence: 0.25, motionThreshold: 0.030 },
+  cat:          { minConfidence: 0.35, motionThreshold: 0.040 },
+  squirrel:     { minConfidence: 0.22, motionThreshold: 0.030 },
+  person:       { minConfidence: 0.40, motionThreshold: 0.050 },
+  'motion-only':{ minConfidence: 0.50, motionThreshold: 0.030 },
+}
+
 type AlertEventLlm = {
   provider: string
   model: string
@@ -1010,16 +1028,21 @@ app.post('/api/sessions/:sessionId/detect', async (request) => {
   const buffer = await file.toBuffer()
   const fileName = file.filename || `snapshot-${Date.now()}.jpg`
   const rawTarget = multipartValue(file.fields, 'target_label', env.VISION_TARGET_LABEL)
+  const profile = TARGET_PROFILES[rawTarget.toLowerCase()]
   const formData = new FormData()
   formData.set('session_id', params.sessionId)
   formData.set('target_label', rawTarget)
   formData.set(
     'min_confidence',
-    multipartValue(file.fields, 'min_confidence', String(env.VISION_MIN_CONFIDENCE))
+    profile
+      ? String(profile.minConfidence)
+      : multipartValue(file.fields, 'min_confidence', String(env.VISION_MIN_CONFIDENCE))
   )
   formData.set(
     'motion_threshold',
-    multipartValue(file.fields, 'motion_threshold', String(env.VISION_MOTION_THRESHOLD))
+    profile
+      ? String(profile.motionThreshold)
+      : multipartValue(file.fields, 'motion_threshold', String(env.VISION_MOTION_THRESHOLD))
   )
   formData.set('file', new Blob([new Uint8Array(buffer)], { type: file.mimetype }), fileName)
 
