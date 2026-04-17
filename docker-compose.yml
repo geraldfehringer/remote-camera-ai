@@ -46,6 +46,9 @@ services:
       LLM_MAX_CALLS_TOTAL_PER_SESSION: ${LLM_MAX_CALLS_TOTAL_PER_SESSION:-400}
       LLM_TIMEOUT_MS: ${LLM_TIMEOUT_MS:-8000}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-72}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED:-false}
+      WHATSAPP_SERVICE_URL: ${WHATSAPP_SERVICE_URL:-http://whatsapp:8091}
+      WHATSAPP_ADMIN_TOKEN: ${WHATSAPP_ADMIN_TOKEN:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -127,6 +130,29 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
+
+  whatsapp:
+    build:
+      context: ./whatsapp
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 8091
+      AUTH_DIR: /app/auth
+      WA_COOLDOWN_MS: ${WHATSAPP_COOLDOWN_MS:-15000}
+    volumes:
+      - ./data/whatsapp-auth:/app/auth
+    expose:
+      - "8091"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8091/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   coturn:
     image: coturn/coturn:4.6.3

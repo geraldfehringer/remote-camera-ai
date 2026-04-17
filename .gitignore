@@ -17,6 +17,8 @@ data/snapshots/*
 !data/snapshots/.gitkeep
 data/sessions.json
 data/archive/
+data/whatsapp-auth/
+!data/whatsapp-auth/.gitkeep
 e2e/fixtures/motion.y4m
 test-results
 certs/dev/*
