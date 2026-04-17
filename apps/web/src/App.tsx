@@ -70,6 +70,14 @@ type DiagnosticsState = {
 
 const apiBaseUrl = getApiBaseUrl()
 
+// Adaptive-sampling constants. Home-camera birds arrive maybe once every
+// 30-60 min; running YOLO at 2.5 FPS all day burns CPU for no gain. After
+// IDLE_BACKOFF_FRAMES consecutive quiet frames (no motion, no matches) the
+// camera page backs off to IDLE_BACKOFF_MS sampling; the moment anything
+// looks interesting it bursts back to the user-selected cadence.
+const IDLE_BACKOFF_FRAMES = 10
+const IDLE_BACKOFF_MS = 2500
+
 const initialDiagnostics: DiagnosticsState = {
   secureContext: { status: 'idle', detail: 'Noch nicht geprueft.' },
   api: { status: 'idle', detail: 'Noch nicht geprueft.' },
@@ -999,6 +1007,7 @@ function CameraPage() {
   // Defaulting to 400 ms (~2.5 FPS). Vision's motion-gate filters most
   // frames, so CPU cost stays proportional to real events.
   const [sampleRateMs, setSampleRateMs] = useState(400)
+  const idleFramesRef = useRef(0)
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null)
   const detectionBusyRef = useRef(false)
@@ -1239,6 +1248,21 @@ function CameraPage() {
 
         const nextDetection = (await response.json()) as DetectionResult
         setDetection(nextDetection)
+
+        // Adaptive sampling: back off when the scene has been quiet for a
+        // while; burst back to the user-selected cadence the moment
+        // anything looks interesting. Birds in a garden often appear once
+        // every 30-60 min, so running YOLO at 2.5 FPS all day just heats
+        // the Mac mini without adding detection value.
+        const motionish =
+          nextDetection.motionDetected ||
+          nextDetection.motionScore > 0.015 ||
+          (nextDetection.matchedObjects?.length ?? 0) > 0
+        if (motionish) {
+          idleFramesRef.current = 0
+        } else {
+          idleFramesRef.current += 1
+        }
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'Detection konnte nicht ausgefuehrt werden.')
       } finally {
@@ -1246,15 +1270,28 @@ function CameraPage() {
       }
     }
 
-    const timer = window.setInterval(() => {
-      void tick()
-    }, sampleRateMs)
+    let cancelledTimer = false
+    let nextTimeout: number | null = null
 
-    void tick()
+    const scheduleNext = () => {
+      if (cancelled || cancelledTimer) return
+      // After ~10 idle frames back off; when busy, honour the user setting.
+      const delay =
+        idleFramesRef.current >= IDLE_BACKOFF_FRAMES
+          ? Math.max(sampleRateMs, IDLE_BACKOFF_MS)
+          : sampleRateMs
+      nextTimeout = window.setTimeout(async () => {
+        await tick()
+        scheduleNext()
+      }, delay)
+    }
+
+    void tick().then(() => scheduleNext())
 
     return () => {
       cancelled = true
-      window.clearInterval(timer)
+      cancelledTimer = true
+      if (nextTimeout !== null) window.clearTimeout(nextTimeout)
     }
   }, [detectionEnabled, minConfidence, motionThreshold, running, sampleRateMs, sessionId, stream, targetLabel, token])
 
