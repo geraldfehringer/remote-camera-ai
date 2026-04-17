@@ -12,6 +12,12 @@ import websocket from '@fastify/websocket'
 import WebSocket from 'ws'
 import { z } from 'zod'
 import { configureLlm, narrateAlert, type LlmNarrationInput } from './llm/index.js'
+import {
+  dispatchAlert,
+  formatAlertText,
+  registerWhatsappRoutes,
+  type WhatsappEnv,
+} from './whatsapp.js'
 
 type Role = 'camera' | 'viewer'
 
@@ -459,6 +465,13 @@ const envSchema = z.object({
 })
 
 const env = envSchema.parse(process.env)
+
+const whatsappEnv: WhatsappEnv = {
+  enabled: env.WHATSAPP_ENABLED,
+  serviceUrl: env.WHATSAPP_SERVICE_URL,
+  adminToken: env.WHATSAPP_ADMIN_TOKEN,
+}
+
 const snapshotsRoot = path.resolve('/app/data/snapshots')
 const sessionsFile = path.resolve('/app/data/sessions.json')
 const archiveRoot = path.resolve('/app/data/archive')
@@ -566,6 +579,7 @@ await app.register(multipart, {
   }
 })
 await app.register(websocket)
+registerWhatsappRoutes(app, whatsappEnv)
 await loadSessions()
 
 function randomToken() {
@@ -1214,6 +1228,10 @@ app.post('/api/sessions/:sessionId/detect', async (request) => {
     broadcastAlert(session, event)
     await persistSessions()
     void archiveEventSnapshot(session, event)
+    void dispatchAlert(whatsappEnv, app.log, {
+      text: formatAlertText(event.target, event.confidence, event.createdAt, event.llm?.shortSummary),
+      idempotencyKey: event.id,
+    })
     void maybeNarrate(session, event, rawTarget)
   } else {
     await persistSessions()
