@@ -1,8 +1,8 @@
 .DS_Store
 .env
 .env.local
-.env.example
 .env.docker-desktop.example
+# .env.example is tracked as a sanitized reference — see the committed file
 node_modules
 dist
 coverage
