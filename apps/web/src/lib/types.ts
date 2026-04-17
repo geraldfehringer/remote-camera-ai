@@ -136,3 +136,17 @@ export type SignalEnvelope =
   | { type: 'candidate'; payload: { candidate: RTCIceCandidateInit } }
   | { type: 'detection'; payload: DetectionResult }
   | { type: 'error'; payload: { message: string } }
+
+export type WhatsappStatus = {
+  state: 'disconnected' | 'qr' | 'authenticating' | 'ready' | 'error'
+  qrDataUrl?: string
+  linkedPhoneE164?: string
+  linkedPushName?: string
+  recipientE164?: string
+  enabled: boolean
+  lastError?: string
+  lastSentAt?: string
+  sentCount: number
+  rateLimitedCount: number
+  sendErrorCount: number
+}
