@@ -90,12 +90,15 @@ async function proxy(
   init: RequestInit = {}
 ): Promise<unknown> {
   try {
+    // Only advertise JSON content-type when we actually send a body.
+    // Fastify 5 rejects empty body + application/json with FST_ERR_CTP_EMPTY_JSON_BODY.
+    const headers: Record<string, string> = { ...(init.headers as Record<string, string> ?? {}) }
+    if (init.body !== undefined && init.body !== null) {
+      headers['content-type'] = 'application/json'
+    }
     const response = await fetch(`${env.serviceUrl}${subpath}`, {
       ...init,
-      headers: {
-        ...(init.headers ?? {}),
-        'content-type': 'application/json',
-      },
+      headers,
       signal: AbortSignal.timeout(5_000),
     })
     reply.code(response.status)
