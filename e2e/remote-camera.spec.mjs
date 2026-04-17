@@ -56,17 +56,20 @@ test('camera and viewer connect through the browser flow', async ({ browser }) =
   expect(snapshotSrc).toContain('/api/sessions/')
 
   // Alert Log assertions (Task 12 UI + Task 14).
-  // Runtime-agnostic: the spec does not know which LLM_PROVIDER the already-running
-  // api container was built with. With LLM_PROVIDER=stub the summary reads
-  // "[stub: motion-only triggered]"; with any other provider it reads either the
-  // provider's short summary or the placeholder "LLM laeuft..." while the call
-  // is in flight. Both satisfy a non-empty assertion.
+  // The mint path emits two WS frames per alert: first without `llm` (summary
+  // shows the 'LLM laeuft...' placeholder), then patched after the LLM call
+  // returns with the real summary. The stub provider resolves synchronously;
+  // real providers take 1-3 s. We wait for the placeholder to be REPLACED so
+  // the test fails loudly if the LLM call silently errors (e.g. bad snapshot
+  // path, missing API key → counters.llmFailed++ but UI stays on placeholder).
   const firstAlertItem = viewerPage.locator('[data-testid="alert-log-item"]').first()
   await expect(firstAlertItem).toBeVisible({ timeout: 15_000 })
 
   const firstAlertSummary = firstAlertItem.locator('.alert-log-summary')
   await expect(firstAlertSummary).toBeVisible({ timeout: 10_000 })
-  await expect(firstAlertSummary).not.toHaveText('', { timeout: 10_000 })
+  await expect(firstAlertSummary).not.toHaveText(/^LLM laeuft\.\.\.$/, {
+    timeout: 20_000
+  })
 
   await cameraContext.close()
   await viewerContext.close()

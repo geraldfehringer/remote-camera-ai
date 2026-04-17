@@ -47,6 +47,14 @@ type DetectionResult = {
     trackStreak?: number | null
     confirmed?: boolean
   }>
+  speciesCandidates?: Array<{
+    scientificName: string
+    commonName: string
+    confidence: number
+    taxonomyPath: string
+  }>
+  speciesMode?: 'unavailable' | 'disabled' | 'skipped' | 'error' | 'top3'
+  speciesModel?: string | null
   snapshotUrl?: string
   createdAt: string
 }
@@ -416,6 +424,22 @@ const app = Fastify({
   bodyLimit: 6 * 1024 * 1024
 })
 
+{
+  const providerKeyMap: Record<string, string | undefined> = {
+    gemini: env.GOOGLE_API_KEY,
+    claude: env.ANTHROPIC_API_KEY,
+    openai: env.OPENAI_API_KEY,
+    together: env.TOGETHER_API_KEY
+  }
+  const needed = providerKeyMap[env.LLM_PROVIDER]
+  if (env.LLM_PROVIDER !== 'stub' && (!needed || needed.length === 0)) {
+    app.log.warn(
+      { provider: env.LLM_PROVIDER },
+      'LLM provider configured but API key missing — every alert will fail narration (counters.llmFailed++). Set LLM_PROVIDER=stub for tests.'
+    )
+  }
+}
+
 await mkdir(snapshotsRoot, { recursive: true })
 await mkdir(path.dirname(sessionsFile), { recursive: true })
 
@@ -571,6 +595,20 @@ async function loadSessions() {
                   })
                 })
               ),
+              speciesCandidates: z
+                .array(
+                  z.object({
+                    scientificName: z.string(),
+                    commonName: z.string(),
+                    confidence: z.number(),
+                    taxonomyPath: z.string()
+                  })
+                )
+                .optional(),
+              speciesMode: z
+                .enum(['unavailable', 'disabled', 'skipped', 'error', 'top3'])
+                .optional(),
+              speciesModel: z.string().nullable().optional(),
               snapshotUrl: z.string().optional(),
               createdAt: z.string()
             })
@@ -677,6 +715,11 @@ function broadcastError(session: Session, message: string) {
   }
 }
 
+function snapshotFileName(snapshotUrl: string): string {
+  const withoutQuery = snapshotUrl.split('?', 1)[0] ?? snapshotUrl
+  return path.basename(withoutQuery)
+}
+
 function broadcastAlert(session: Session, event: AlertEvent): void {
   for (const socket of Object.values(session.sockets)) {
     if (!socket) continue
@@ -707,7 +750,7 @@ async function maybeNarrate(session: Session, event: AlertEvent, rawTarget: stri
   session.llmCallTimestamps.push(now)
   session.llmCallsTotal += 1
 
-  const snapshotPath = path.join(snapshotsRoot, session.id, path.basename(event.snapshotUrl))
+  const snapshotPath = path.join(snapshotsRoot, session.id, snapshotFileName(event.snapshotUrl))
   const input: LlmNarrationInput = {
     event: {
       id: event.id,
@@ -1039,14 +1082,15 @@ app.post('/api/sessions/:sessionId/detect', async (request) => {
   })
 
   if (mintDecision) {
+    const topSpecies = analysis.speciesCandidates?.[0]
     const event: AlertEvent = {
       id: randomUUID(),
       createdAt: new Date().toISOString(),
       triggeredAt: analysis.createdAt ?? new Date().toISOString(),
       target: normalizedTarget,
-      species: undefined,
-      speciesCommonName: undefined,
-      speciesConfidence: undefined,
+      species: topSpecies?.scientificName,
+      speciesCommonName: topSpecies?.commonName,
+      speciesConfidence: topSpecies?.confidence,
       confidence: topMatch?.confidence ?? 0,
       trackId: trackIdStr,
       snapshotUrl: snapshotUrl ?? '',
