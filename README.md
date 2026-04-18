@@ -1,5 +1,7 @@
 # Remote Camera AI
 
+> **Lizenz-Kurzfassung:** Dieses Projekt steht unter der **[PolyForm Noncommercial License 1.0.0](./LICENSE)**. Private, schulische, karitative und nicht-kommerzielle Nutzung ist erlaubt — **kommerzielle Nutzung ist ausdrücklich untersagt** und nur mit schriftlicher Genehmigung des Autors zulässig. Die Software wird **ohne jegliche Gewährleistung** bereitgestellt; der Autor übernimmt **keine Haftung** für Schäden aus Nutzung oder Fehlkonfiguration. Details siehe Abschnitt [Lizenz & Haftungsausschluss](#lizenz--haftungsausschluss) am Ende dieser Datei.
+
 Eine moderne WebRTC-Webapp, mit der ein Android-Smartphone im Browser als Remote-Kamera arbeitet und ein zweites Android-Geraet den Live-Stream sieht. Alle Services laufen lokal per Docker Compose auf dem Mac mini in eurer Dev-Umgebung. Optional laeuft parallel eine lokale KI-Pipeline fuer Motion Detection und Objekterkennung, damit bei Bewegung und Zielobjekten wie `bird` ein Alarm inkl. Snapshot ausgeloest werden kann.
 
 ## Stack
@@ -161,3 +163,33 @@ Die Realtime-Erkennung sollte lokal auf dem Vision-Service laufen, nicht ueber e
 - Android B ist der Viewer und zeigt nur den Stream und Alerts.
 - Der Mac mini hostet Web, API, Vision und optional TURN lokal.
 - Die Session-Links muessen immer auf den Mac mini zeigen, niemals auf `localhost` des Smartphones.
+
+## Lizenz & Haftungsausschluss
+
+Dieses Projekt ist unter der **[PolyForm Noncommercial License 1.0.0](./LICENSE)** veröffentlicht. Die vollständige, rechtsverbindliche Fassung liegt in der Datei [`LICENSE`](./LICENSE) im Repo-Root. Die folgende Zusammenfassung ist **keine** rechtliche Erklärung, sondern nur eine Orientierung.
+
+### Was ist erlaubt (ohne separate Genehmigung)
+
+- **Private Nutzung** für eigene Zwecke zu Hause, als Hobby-Projekt oder zum persönlichen Lernen.
+- **Experimente und Forschung** an Universitäten, Schulen und öffentlichen Forschungsinstituten.
+- **Nutzung durch gemeinnützige Organisationen** (Vereine, NGOs, karitative Organisationen, Behörden, Organisationen für öffentliche Sicherheit, Gesundheit oder Umweltschutz) — unabhängig von deren Finanzierungsquelle.
+- **Änderungen, Forks und abgeleitete Werke** zu diesen nicht-kommerziellen Zwecken, solange die Lizenz und der Copyright-Hinweis mit weitergegeben werden.
+
+### Was ist nicht erlaubt
+
+- **Kommerzielle Nutzung in jeglicher Form** — weder das direkte Weiterverkaufen der Software noch das Einbetten in ein kostenpflichtiges Produkt, ein Kundenprojekt, einen SaaS-Dienst oder einen anderen gewinnorientierten Kontext.
+- Eine Firmenlizenz oder ein Rechtenaustausch mit Dritten **ohne vorherige schriftliche Zustimmung** des Autors.
+
+### Kommerzielle Nutzung anfragen
+
+Für gewerbliche Einsätze, Custom-Lizenzen oder Partnerschaften bitte ein GitHub-Issue mit dem Label `commercial-license-request` öffnen: <https://github.com/geraldfehringer/remote-camera-ai/issues/new>. Ohne eine separate, schriftliche Vereinbarung bleibt jede kommerzielle Verwendung ein Lizenzverstoß.
+
+### Gewährleistung & Haftung
+
+Die Software wird **„wie besehen" („as is")** bereitgestellt. Soweit gesetzlich zulässig übernimmt der Autor **keinerlei Gewährleistung** und **keine Haftung** für direkte oder indirekte Schäden, Datenverluste, entgangene Gewinne, Fehlalarme der KI-Pipeline, nicht ausgelöste Alerts, falsch übermittelte WhatsApp-Nachrichten oder sonstige Folgen aus der Installation, der Konfiguration oder dem Betrieb dieses Projekts. Nutzung erfolgt auf eigenes Risiko und in eigener Verantwortung.
+
+Wer die Software in einem sicherheitsrelevanten Kontext einsetzen möchte (Einbruchsschutz, Überwachung von Kindern/Tieren, medizinische Zwecke etc.), ist selbst dafür verantwortlich, die Zuverlässigkeit für seinen Anwendungsfall zu prüfen. Die KI-Pipeline ist ein Experiment und kein zertifiziertes Sicherheitssystem.
+
+### Datenschutz-Hinweis
+
+Das Projekt verarbeitet Kamera-Bildmaterial und schickt bei Alert-Ereignissen Bild und Kontext an den konfigurierten LLM-Anbieter (Standard: Google Gemini). Wer die Software im Geltungsbereich der DSGVO oder vergleichbarer Regelungen einsetzt, ist selbst Verantwortlicher im Sinne der Verordnung und muss alle erforderlichen Einwilligungen, Verträge zur Auftragsverarbeitung und Hinweispflichten eigenständig erfüllen. Der Autor stellt dafür keine Vorlagen bereit.

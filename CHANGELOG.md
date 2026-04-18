@@ -14,6 +14,7 @@ Entries are ordered newest first.
 ## [Unreleased]
 
 ### Added
+- **License & liability**: Added `LICENSE` file with the full [PolyForm Noncommercial License 1.0.0](https://polyformproject.org/licenses/noncommercial/1.0.0) plus a German "Lizenz & Haftungsausschluss" section in `README.md`. Private, educational, research, and nonprofit use are permitted without extra paperwork; commercial use requires a written agreement with the author (request via a GitHub issue labelled `commercial-license-request`). Software ships "as is" with no warranty and no liability for damage arising from use or misconfiguration. Users in GDPR territory remain the data controller for any camera footage and LLM traffic.
 - **Remote target control from viewer**: A dropdown on the Viewer page sends a `control` WebSocket message that the camera device picks up on its next detect tick. Same five targets as the camera-side dropdown (bird / cat / squirrel / person / motion-only).
 - **German alert narration** hardcoded across the stack. LLM narration (Gemini / Claude / OpenAI / Together) is instructed to always emit the `shortSummary` in German with proper Umlaute and grammar. No additional translation call — the language is a prompt variant.
 - **INSTALLATION.md** with minimum system requirements and a step-by-step setup checklist for a public audience.
