@@ -1,8 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { getSignalUrl } from '../lib/api'
 import type { AlertEventDTO } from '../lib/alerts'
 
 export type SignalingRole = 'camera' | 'viewer'
+
+export type RemoteControlPayload = { target?: string; zoom?: number }
+export type RemoteCapabilitiesPayload = {
+  zoomMin?: number
+  zoomMax?: number
+  zoomStep?: number
+  torch?: boolean
+}
 
 type SignalEnvelope =
   | { type: 'session-state'; payload: Record<string, unknown> }
@@ -11,7 +19,13 @@ type SignalEnvelope =
   | { type: 'candidate'; payload: { candidate: RTCIceCandidateInit } }
   | { type: 'detection'; payload: unknown }
   | { type: 'alert'; payload: AlertEventDTO }
+  | { type: 'control'; payload: RemoteControlPayload }
+  | { type: 'capabilities'; payload: RemoteCapabilitiesPayload }
   | { type: 'error'; payload: { message: string } }
+
+export type OutboundSignal =
+  | { type: 'control'; payload: RemoteControlPayload }
+  | { type: 'capabilities'; payload: RemoteCapabilitiesPayload }
 
 export type SignalingStatus =
   | 'idle'
@@ -26,6 +40,8 @@ export type SignalingEnvelopeExtras =
   | { type: 'session-state'; payload: Record<string, unknown> }
   | { type: 'detection'; payload: unknown }
   | { type: 'alert'; payload: AlertEventDTO }
+  | { type: 'control'; payload: RemoteControlPayload }
+  | { type: 'capabilities'; payload: RemoteCapabilitiesPayload }
   | { type: 'error'; payload: { message: string } }
 
 export type UseSignalingParams = {
@@ -42,6 +58,7 @@ export type UseSignalingResult = {
   remoteStream: MediaStream | null
   status: SignalingStatus
   lastError: string | null
+  sendSignal: (msg: OutboundSignal) => void
 }
 
 const RECONNECT_BASE_MS = 500
@@ -71,6 +88,14 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
   iceServersRef.current = iceServers
 
   const peerContainerRef = useRef<{ pc: RTCPeerConnection | null }>({ pc: null })
+  const wsRef = useRef<WebSocket | null>(null)
+
+  const sendSignal = useCallback((msg: OutboundSignal) => {
+    const ws = wsRef.current
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(msg))
+    }
+  }, [])
 
   useEffect(() => {
     if (!sessionId || !token || !iceServers) {
@@ -161,7 +186,14 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
     }
 
     const handleSignal = async (msg: SignalEnvelope) => {
-      if (msg.type === 'session-state' || msg.type === 'detection' || msg.type === 'error' || msg.type === 'alert') {
+      if (
+        msg.type === 'session-state' ||
+        msg.type === 'detection' ||
+        msg.type === 'error' ||
+        msg.type === 'alert' ||
+        msg.type === 'control' ||
+        msg.type === 'capabilities'
+      ) {
         envelopeRef.current?.(msg)
         if (msg.type === 'error') setLastError(msg.payload.message)
         return
@@ -243,6 +275,7 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
       let signalQueue: Promise<void> = Promise.resolve()
       const socket = new WebSocket(getSignalUrl(sessionId, role, token))
       ws = socket
+      wsRef.current = socket
 
       socket.onopen = () => {
         attempt = 0
@@ -275,6 +308,7 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
 
       socket.onclose = (ev) => {
         ws = null
+        if (wsRef.current === socket) wsRef.current = null
         teardownPeer()
         if (cancelled) return
         if (TERMINAL_CLOSE_CODES.has(ev.code)) {
@@ -305,6 +339,7 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
       if (ws) {
         try { ws.onclose = null } catch { /* ignore */ }
         try { ws.close(1000, 'unmount') } catch { /* ignore */ }
+        wsRef.current = null
         ws = null
       }
       teardownPeer()
@@ -332,5 +367,5 @@ export function useSignaling(params: UseSignalingParams): UseSignalingResult {
     }
   }, [localStream, role])
 
-  return { remoteStream, status, lastError }
+  return { remoteStream, status, lastError, sendSignal }
 }

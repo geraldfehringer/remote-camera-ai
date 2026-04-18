@@ -11,7 +11,11 @@ import {
 import QRCode from 'qrcode'
 import { Link, Route, Routes, useParams, useSearchParams } from 'react-router'
 import { useWakeLock } from './hooks/useWakeLock'
-import { useSignaling, type SignalingEnvelopeExtras } from './hooks/useSignaling'
+import {
+  useSignaling,
+  type RemoteControlPayload,
+  type SignalingEnvelopeExtras,
+} from './hooks/useSignaling'
 import { useAlertSound } from './hooks/useAlertSound'
 import { useWhatsappStatus } from './hooks/useWhatsappStatus'
 import {
@@ -81,10 +85,10 @@ const IDLE_BACKOFF_FRAMES = 10
 const IDLE_BACKOFF_MS = 2500
 
 const initialDiagnostics: DiagnosticsState = {
-  secureContext: { status: 'idle', detail: 'Noch nicht geprueft.' },
-  api: { status: 'idle', detail: 'Noch nicht geprueft.' },
-  signaling: { status: 'idle', detail: 'Noch nicht geprueft.' },
-  turn: { status: 'idle', detail: 'Noch nicht geprueft.' },
+  secureContext: { status: 'idle', detail: 'Noch nicht geprüft.' },
+  api: { status: 'idle', detail: 'Noch nicht geprüft.' },
+  signaling: { status: 'idle', detail: 'Noch nicht geprüft.' },
+  turn: { status: 'idle', detail: 'Noch nicht geprüft.' },
   lastCheckedAt: null,
 }
 
@@ -205,7 +209,7 @@ function resolveTargetInput(rawValue: string, supportedTargets: string[]) {
       normalized,
       resolved: targetAliasMap[normalized],
       confidence: 'high' as const,
-      note: 'Alias wurde eindeutig auf eine Modellklasse aufgeloest.',
+      note: 'Alias wurde eindeutig auf eine Modellklasse aufgelöst.',
     }
   }
 
@@ -214,7 +218,7 @@ function resolveTargetInput(rawValue: string, supportedTargets: string[]) {
       normalized,
       resolved: normalized,
       confidence: 'high' as const,
-      note: 'Direkter Treffer auf eine unterstuetzte Modellklasse.',
+      note: 'Direkter Treffer auf eine unterstützte Modellklasse.',
     }
   }
 
@@ -239,7 +243,7 @@ function resolveTargetInput(rawValue: string, supportedTargets: string[]) {
         normalized,
         resolved: label,
         confidence: 'medium' as const,
-        note: `Die Eingabe enthaelt die Modellklasse "${label}".`,
+        note: `Die Eingabe enthält die Modellklasse "${label}".`,
       }
     }
   }
@@ -338,26 +342,26 @@ function HomePage() {
     setDiagnostics({
       secureContext: {
         status: 'running',
-        detail: 'Pruefe, ob der Browser die Kamera-API in diesem Kontext freischaltet.',
+        detail: 'Prüfe, ob der Browser die Kamera-API in diesem Kontext freischaltet.',
       },
-      api: { status: 'running', detail: 'Pruefe den Health-Endpoint ueber den Frontend-Port.' },
-      signaling: { status: 'running', detail: 'Pruefe WebSocket-Signaling ueber denselben Browserpfad.' },
-      turn: { status: 'running', detail: 'Pruefe, ob der Browser Relay-Kandidaten vom TURN-Server beziehen kann.' },
+      api: { status: 'running', detail: 'Prüfe den Health-Endpoint über den Frontend-Port.' },
+      signaling: { status: 'running', detail: 'Prüfe WebSocket-Signaling über denselben Browserpfad.' },
+      turn: { status: 'running', detail: 'Prüfe, ob der Browser Relay-Kandidaten vom TURN-Server beziehen kann.' },
       lastCheckedAt: null,
     })
 
     const nextSecureContext = evaluateCameraBrowserSupport()
     let nextApi: DiagnosticEntry = {
       status: 'error',
-      detail: 'API-Pruefung wurde nicht abgeschlossen.',
+      detail: 'API-Prüfung wurde nicht abgeschlossen.',
     }
     let nextSignaling: DiagnosticEntry = {
       status: 'error',
-      detail: 'WebSocket-Pruefung wurde nicht abgeschlossen.',
+      detail: 'WebSocket-Prüfung wurde nicht abgeschlossen.',
     }
     let nextTurn: DiagnosticEntry = {
       status: 'warning',
-      detail: 'TURN-Pruefung wurde nicht abgeschlossen.',
+      detail: 'TURN-Prüfung wurde nicht abgeschlossen.',
     }
 
     try {
@@ -368,7 +372,7 @@ function HomePage() {
 
       const health = (await healthResponse.json()) as { ok?: boolean }
       nextApi = health.ok
-        ? { status: 'ok', detail: 'API antwortet ueber denselben Host und Port wie das Frontend.' }
+        ? { status: 'ok', detail: 'API antwortet über denselben Host und Port wie das Frontend.' }
         : { status: 'error', detail: 'Health-Antwort war erreichbar, aber nicht erfolgreich.' }
     } catch (reason) {
       nextApi = {
@@ -397,7 +401,7 @@ function HomePage() {
         detail:
           reason instanceof Error
             ? reason.message
-            : 'TURN-Pruefung war nicht eindeutig. STUN/host-Kandidaten koennen im LAN dennoch genuegen.',
+            : 'TURN-Prüfung war nicht eindeutig. STUN/host-Kandidaten können im LAN dennoch genügen.',
       }
     }
 
@@ -437,11 +441,11 @@ function HomePage() {
     <main className="page-shell" data-testid="home-page">
       <section className="hero-card">
         <div className="hero-copy">
-          <span className="eyebrow">Home Camera · Local Network</span>
+          <span className="eyebrow">Heim-Kamera · Lokales Netzwerk</span>
           <h1>Ein Telefon als Kamera. Jeder Browser als Viewer.</h1>
           <p>
             Ein iOS- oder Android-Telefon streamt seine Kamera per WebRTC an den Mac mini.
-            Jeder Browser im gleichen Heimnetz kann live zuschauen und erhaelt KI-gestuetzte
+            Jeder Browser im gleichen Heimnetz kann live zuschauen und erhält KI-gestützte
             Alerts mit Artbestimmung und Gemini-Beschreibung.
           </p>
           <div className="hero-actions">
@@ -457,7 +461,7 @@ function HomePage() {
         </div>
 
         <div className="hero-matrix">
-          <Metric title="Kamera" value="iOS / Android" detail="Rueckkamera im mobilen Browser" />
+          <Metric title="Kamera" value="iOS / Android" detail="Rückkamera im mobilen Browser" />
           <Metric title="Viewer" value="Jeder Browser" detail="Desktop, Laptop, Tablet im LAN" />
           <Metric title="Stack" value="Mac mini · Docker" detail="YOLO · YOLOE · SAM 3 · BioCLIP 2 · Gemini" />
         </div>
@@ -471,9 +475,9 @@ function HomePage() {
             <div>
               <h2>So erkennt das System Tiere am Fenster</h2>
               <p className="muted-copy">
-                Jedes Bild aus dem Kamera-Stream durchlaeuft sechs Stufen.
+                Jedes Bild aus dem Kamera-Stream durchläuft sechs Stufen.
                 Die ersten vier laufen komplett auf dem Mac mini — ohne Cloud.
-                Erst fuer die kurze Text-Beschreibung eines Alerts wird ein LLM aufgerufen.
+                Erst für die kurze Text-Beschreibung eines Alerts wird ein LLM aufgerufen.
               </p>
             </div>
             <StatusBadge active>6-Stufen-Pipeline</StatusBadge>
@@ -486,7 +490,7 @@ function HomePage() {
                 <h3>Bewegungs-Gate</h3>
                 <p className="muted-copy">
                   Vergleicht aufeinander folgende Frames. Bleibt die Szene still, wird alles
-                  Weitere uebersprungen — spart Rechenzeit und Akku am Telefon.
+                  Weitere übersprungen — spart Rechenzeit und Akku am Telefon.
                 </p>
               </div>
             </li>
@@ -503,9 +507,9 @@ function HomePage() {
             <li className="pipeline-step">
               <span className="pipeline-index">3</span>
               <div>
-                <h3>YOLOE 26x · Gezielte Nachpruefung</h3>
+                <h3>YOLOE 26x · Gezielte Nachprüfung</h3>
                 <p className="muted-copy">
-                  Schneidet die Kandidaten-Region aus und pruft sie in hoeherer Aufloesung per
+                  Schneidet die Kandidaten-Region aus und pruft sie in höherer Auflösung per
                   Text-Prompt ("bird", "cat", "squirrel"). Filtert viele falsche Treffer heraus.
                 </p>
               </div>
@@ -513,10 +517,10 @@ function HomePage() {
             <li className="pipeline-step">
               <span className="pipeline-index">4</span>
               <div>
-                <h3>SAM 3 · Praezise Segmentierung</h3>
+                <h3>SAM 3 · Präzise Segmentierung</h3>
                 <p className="muted-copy">
-                  Metas Segment-Anything-Model zeichnet die tatsaechliche Silhouette des Tieres nach.
-                  Das schuetzt vor Blaetter-, Schatten- und Reflexions-Fehlalarmen.
+                  Metas Segment-Anything-Model zeichnet die tatsächliche Silhouette des Tieres nach.
+                  Das schützt vor Blätter-, Schatten- und Reflexions-Fehlalarmen.
                 </p>
               </div>
             </li>
@@ -525,7 +529,7 @@ function HomePage() {
               <div>
                 <h3>BioCLIP 2 · Artbestimmung</h3>
                 <p className="muted-copy">
-                  Fuer Vogel, Katze, Eichhoernchen vergleicht das Modell den Ausschnitt gegen
+                  Für Vogel, Katze, Eichhörnchen vergleicht das Modell den Ausschnitt gegen
                   eine kuratierte Mitteleuropa-Liste (172 Arten) und liefert Top-3 Kandidaten
                   mit lateinischem und deutschem Namen.
                 </p>
@@ -536,9 +540,9 @@ function HomePage() {
               <div>
                 <h3>Gemini 3.1 Flash Lite · Szenen-Beschreibung</h3>
                 <p className="muted-copy">
-                  Nur bei einem tatsaechlich ausgeloesten Alert wird ein LLM aufgerufen —
+                  Nur bei einem tatsächlich ausgelösten Alert wird ein LLM aufgerufen —
                   es schreibt einen kurzen Satz auf Deutsch und markiert offensichtliche
-                  Fehlalarme (Schatten, Lichtwechsel) als unterdrueckt.
+                  Fehlalarme (Schatten, Lichtwechsel) als unterdrückt.
                 </p>
               </div>
             </li>
@@ -552,7 +556,7 @@ function HomePage() {
 
           <div className="pipeline-footer muted-copy">
             Zwischen Stufe 2 und 6 liegt je nach Szene ~0.5-15 s. Debounce pro trackId verhindert,
-            dass derselbe Vogel innerhalb von 15 s mehrfach einen Alert ausloest.
+            dass derselbe Vogel innerhalb von 15 s mehrfach einen Alert auslöst.
           </div>
         </article>
       </section>
@@ -561,10 +565,10 @@ function HomePage() {
         <article className="glass-card">
           <h2>Schnellstart</h2>
           <ol className="ordered-list">
-            <li>Telefon und Viewer-Geraet ins gleiche WLAN wie den Mac mini bringen.</li>
+            <li>Telefon und Viewer-Gerät ins gleiche WLAN wie den Mac mini bringen.</li>
             <li>Auf <strong>Neue Session starten</strong> tippen — zwei Links werden erzeugt.</li>
-            <li>Camera-Link am Telefon oeffnen, Zielobjekt waehlen, Stream starten.</li>
-            <li>Viewer-Link auf irgendeinem Geraet oeffnen — Live-View + Alert-Log erscheinen automatisch.</li>
+            <li>Camera-Link am Telefon öffnen, Zielobjekt wählen, Stream starten.</li>
+            <li>Viewer-Link auf irgendeinem Gerät öffnen — Live-View + Alert-Log erscheinen automatisch.</li>
             <li>WhatsApp-Alert an dein Handy, sobald ein Treffer landet.</li>
           </ol>
         </article>
@@ -572,8 +576,8 @@ function HomePage() {
         <article className="glass-card">
           <h2>Erkennungs-Pipeline</h2>
           <p className="muted-copy">
-            Jeder Frame durchlaeuft Motion-Gate → YOLO26n → YOLOE-26x → optional SAM 3.
-            Bei Treffern auf <em>Vogel/Katze/Eichhoernchen</em> klassifiziert BioCLIP 2 die Art.
+            Jeder Frame durchläuft Motion-Gate → YOLO26n → YOLOE-26x → optional SAM 3.
+            Bei Treffern auf <em>Vogel/Katze/Eichhörnchen</em> klassifiziert BioCLIP 2 die Art.
             Alert-Minting entpreller per trackId, dann kurze Szenenbeschreibung via {' '}
             <strong>{config?.llmRecommendation.model ?? 'Gemini 3.1 Flash Lite'}</strong>.
           </p>
@@ -585,8 +589,8 @@ function HomePage() {
         <article className="glass-card">
           <h2>LLM-Verbrauch</h2>
           <p className="muted-copy">
-            Pro Alert laeuft ein LLM-Call mit Bild und Kontext. Stuendliches und
-            Session-Budget schuetzen vor Runaway-Kosten.
+            Pro Alert läuft ein LLM-Call mit Bild und Kontext. Stündliches und
+            Session-Budget schützen vor Runaway-Kosten.
           </p>
           <LlmUsagePanel usage={config?.llmUsage} recommendation={config?.llmRecommendation} />
         </article>
@@ -595,11 +599,11 @@ function HomePage() {
           <h2>Lokal zuerst</h2>
           <p className="muted-copy">
             Motion, Objekt- und Arterkennung laufen komplett lokal im Vision-Container.
-            LLM wird nur fuer die kurze Text-Zusammenfassung ausgeloester Alerts aufgerufen —
-            nie fuer jedes Einzelbild.
+            LLM wird nur für die kurze Text-Zusammenfassung ausgelöster Alerts aufgerufen —
+            nie für jedes Einzelbild.
           </p>
           <p className="muted-copy">
-            Fuer <code>LLM_PROVIDER=stub</code> bleiben alle Token-Zaehler auf <strong>0</strong>.
+            Für <code>LLM_PROVIDER=stub</code> bleiben alle Token-Zähler auf <strong>0</strong>.
           </p>
         </article>
       </section>
@@ -610,7 +614,7 @@ function HomePage() {
             <div>
               <h2>Vision Runtime</h2>
               <p className="muted-copy">
-                Zeigt direkt, ob YOLOE und SAM 3 im laufenden Docker-Stack wirklich verfuegbar sind.
+                Zeigt direkt, ob YOLOE und SAM 3 im laufenden Docker-Stack wirklich verfügbar sind.
               </p>
             </div>
             <StatusBadge active={Boolean(config?.visionRuntime.reachable)}>Vision</StatusBadge>
@@ -625,7 +629,7 @@ function HomePage() {
             <div>
               <h2>LAN-Diagnose</h2>
               <p className="muted-copy">
-                Prueft exakt den Browserpfad, den auch Kamera-Telefon und Viewer-Browser nutzen.
+                Prüft exakt den Browserpfad, den auch Kamera-Telefon und Viewer-Browser nutzen.
               </p>
             </div>
             <StatusBadge active={!diagnosticsRunning}>Netz</StatusBadge>
@@ -659,7 +663,7 @@ function HomePage() {
               disabled={diagnosticsRunning}
               onClick={() => void runDiagnostics()}
             >
-              {diagnosticsRunning ? 'Diagnose laeuft...' : 'Diagnose erneut starten'}
+              {diagnosticsRunning ? 'Diagnose läuft...' : 'Diagnose erneut starten'}
             </button>
           </div>
           <p className="muted-copy">
@@ -673,14 +677,14 @@ function HomePage() {
         <article className="glass-card">
           <h2>Browser-Ziel</h2>
           <p className="muted-copy">
-            Oeffne diesen Host sowohl auf dem Kamera-Telefon als auch auf dem Viewer-Geraet —
-            API und Signaling laufen danach intern ueber denselben Mac mini.
+            Oeffne diesen Host sowohl auf dem Kamera-Telefon als auch auf dem Viewer-Gerät —
+            API und Signaling laufen danach intern über denselben Mac mini.
           </p>
           <p className="session-link" data-testid="lan-target">
             {config?.publicWebUrl ?? 'PUBLIC_WEB_URL fehlt'}
           </p>
           <p className="muted-copy">
-            Falls <code>macmini.local</code> auf dem Telefon nicht aufgeloest wird, verwende die
+            Falls <code>macmini.local</code> auf dem Telefon nicht aufgelöst wird, verwende die
             LAN-IP des Mac mini auf demselben Port.
           </p>
         </article>
@@ -691,9 +695,9 @@ function HomePage() {
       {links ? (
         <section className="session-layout">
           <article className="glass-card">
-            <h2>Camera Link</h2>
+            <h2>Kamera-Link</h2>
             <p className="muted-copy">
-              Diesen Link auf dem iOS- oder Android-Telefon oeffnen, das als Kamera dienen soll.
+              Diesen Link auf dem iOS- oder Android-Telefon öffnen, das als Kamera dienen soll.
             </p>
             <a
               className="session-link"
@@ -704,13 +708,13 @@ function HomePage() {
             >
               {links.cameraUrl}
             </a>
-            {qrCode ? <img className="qr-code" src={qrCode} alt="QR-Code fuer den Camera-Link" /> : null}
+            {qrCode ? <img className="qr-code" src={qrCode} alt="QR-Code für den Camera-Link" /> : null}
           </article>
 
           <article className="glass-card">
-            <h2>Viewer Link</h2>
+            <h2>Viewer-Link</h2>
             <p className="muted-copy">
-              In jedem Browser im Heimnetz oeffnen — Laptop, Desktop, Tablet oder zweitem Telefon.
+              In jedem Browser im Heimnetz öffnen — Laptop, Desktop, Tablet oder zweitem Telefon.
             </p>
             <a
               className="session-link"
@@ -723,7 +727,7 @@ function HomePage() {
             </a>
             <div className="inline-actions">
               <Link className="secondary-button" to={toLocalRoute(links.viewerUrl)}>
-                Im aktuellen Tab oeffnen
+                Im aktuellen Tab öffnen
               </Link>
             </div>
           </article>
@@ -732,6 +736,14 @@ function HomePage() {
     </main>
   )
 }
+
+const VIEWER_TARGET_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: 'bird', label: 'Vogel (bird)' },
+  { value: 'cat', label: 'Katze (cat)' },
+  { value: 'squirrel', label: 'Eichhörnchen (squirrel)' },
+  { value: 'person', label: 'Person (human)' },
+  { value: 'motion-only', label: 'Bewegung (motion-only)' },
+]
 
 function ViewerPage() {
   const { sessionId } = useParams()
@@ -744,6 +756,9 @@ function ViewerPage() {
   const [error, setError] = useState<string | null>(null)
   const [alertEvents, setAlertEvents] = useState<AlertEventDTO[]>([])
   const [counters, setCounters] = useState<SessionCountersDTO | null>(null)
+  // Viewer-side optimistic echo of the target control request, overwritten
+  // by authoritative detection updates coming back from the pipeline.
+  const [remoteTargetLabel, setRemoteTargetLabel] = useState<string | null>(null)
 
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null)
   const seenEventIdsRef = useRef<Set<string>>(new Set())
@@ -760,6 +775,11 @@ function ViewerPage() {
         setConfig(loadedConfig)
         setMetadata(loadedSession)
         setDetection(loadedSession.latestDetection)
+        if (loadedSession.latestDetection?.targetLabel) {
+          setRemoteTargetLabel(loadedSession.latestDetection.targetLabel)
+        } else {
+          setRemoteTargetLabel(loadedConfig.defaults.targetLabel)
+        }
       })
       .catch((reason: unknown) => {
         setError(reason instanceof Error ? reason.message : 'Viewer konnte nicht initialisiert werden.')
@@ -781,8 +801,15 @@ function ViewerPage() {
           latestDetection: nextState.latestDetection ?? current.latestDetection,
         }
       })
-      if (nextState.latestDetection !== undefined) {
-        setDetection(nextState.latestDetection ?? null)
+      if (nextState.latestDetection) {
+        setDetection(nextState.latestDetection)
+        if (nextState.latestDetection.targetLabel) {
+          // Authoritative update from the vision pipeline wins over any
+          // in-flight optimistic viewer setting.
+          setRemoteTargetLabel(nextState.latestDetection.targetLabel)
+        }
+      } else if (nextState.latestDetection === null) {
+        setDetection(null)
       }
       if (nextState.counters) {
         setCounters(nextState.counters)
@@ -794,7 +821,11 @@ function ViewerPage() {
         setAlertEvents(nextState.events.slice(-50).reverse())
       }
     } else if (envelope.type === 'detection') {
-      setDetection(envelope.payload as DetectionResult)
+      const next = envelope.payload as DetectionResult
+      setDetection(next)
+      if (next.targetLabel) {
+        setRemoteTargetLabel(next.targetLabel)
+      }
     } else if (envelope.type === 'alert') {
       const dto = envelope.payload as AlertEventDTO
       const isNew = !seenEventIdsRef.current.has(dto.id)
@@ -820,7 +851,7 @@ function ViewerPage() {
     }
   }, [playAlertSound])
 
-  const { remoteStream, lastError } = useSignaling({
+  const { remoteStream, lastError, sendSignal } = useSignaling({
     sessionId: sessionId ?? null,
     role: 'viewer',
     token,
@@ -829,6 +860,12 @@ function ViewerPage() {
     polite: true,
     onEnvelope: handleEnvelope,
   })
+
+  function handleRemoteTargetChange(event: ChangeEvent<HTMLSelectElement>) {
+    const next = event.target.value
+    setRemoteTargetLabel(next)
+    sendSignal({ type: 'control', payload: { target: next } })
+  }
 
   useEffect(() => {
     const video = remoteVideoRef.current
@@ -846,14 +883,14 @@ function ViewerPage() {
   return (
     <PageLayout
       title="Viewer"
-      subtitle="Live-Stream und Alerts in jedem Browser im Heimnetz. Pro Session ist genau ein Viewer aktiv — ein zweiter Tab uebernimmt und schliesst den aelteren."
+      subtitle="Live-Stream und Alerts in jedem Browser im Heimnetz. Pro Session ist genau ein Viewer aktiv — ein zweiter Tab übernimmt und schließt den älteren."
       backLink
     >
       <section className="grid-two">
         <article className="glass-card video-card">
           <div className="card-header">
             <div>
-              <h2>Live View</h2>
+              <h2>Live-Ansicht</h2>
               <p className="muted-copy">
                 {metadata?.cameraConnected ? 'Kamera verbunden' : 'Warte auf Kamera-Sender'}
               </p>
@@ -873,7 +910,7 @@ function ViewerPage() {
         <article className="glass-card">
           <div className="card-header">
             <div>
-              <h2>Alert Feed</h2>
+              <h2>Alarm-Übersicht</h2>
               <p className="muted-copy">Alarm bei Bewegung und passendem Zielobjekt.</p>
             </div>
             <StatusBadge active={Boolean(detection?.triggered)}>Alarm</StatusBadge>
@@ -887,6 +924,60 @@ function ViewerPage() {
       </section>
 
       <section className="grid-two">
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Fernsteuerung</h2>
+              <p className="muted-copy">
+                Zielobjekt remote am Kamera-Handy umschalten. Aenderungen werden per
+                Signaling an das Telefon geschickt und greifen beim nächsten Detect-Tick.
+              </p>
+            </div>
+            <StatusBadge active={Boolean(metadata?.cameraConnected)}>
+              {metadata?.cameraConnected ? 'Kamera live' : 'Kamera offline'}
+            </StatusBadge>
+          </div>
+
+          <label className="field">
+            <span>Zielobjekt</span>
+            <select
+              data-testid="viewer-target-label"
+              value={remoteTargetLabel ?? ''}
+              onChange={handleRemoteTargetChange}
+              disabled={!metadata?.cameraConnected}
+            >
+              {remoteTargetLabel && !VIEWER_TARGET_OPTIONS.some((opt) => opt.value === remoteTargetLabel) ? (
+                <option value={remoteTargetLabel}>{remoteTargetLabel}</option>
+              ) : null}
+              {VIEWER_TARGET_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="muted-copy">
+            Die Zoom-Steuerung über den Viewer ist bewusst deaktiviert, weil sie
+            auf dem Kamera-Handy zu Browser-Fehlern fuehren kann, die den Wake Lock
+            freigeben und den Bildschirm sperren. Zoom bleibt nur lokal am Telefon.
+          </p>
+        </article>
+
+        <article className="glass-card">
+          <div className="card-header">
+            <div>
+              <h2>Aktuelle Einstellung</h2>
+              <p className="muted-copy">Was die Detection gerade tatsächlich auswertet.</p>
+            </div>
+          </div>
+          <div className="stat-grid">
+            <Stat label="Ziel (Pipeline)" value={detection?.targetLabel ?? remoteTargetLabel ?? 'n/a'} />
+            <Stat label="Viewer-Anforderung" value={remoteTargetLabel ?? 'n/a'} />
+          </div>
+        </article>
+      </section>
+
+      <section className="grid-two">
         <article className="glass-card alert-log" data-testid="alert-log">
           <div className="card-header">
             <div>
@@ -894,9 +985,9 @@ function ViewerPage() {
               <p className="muted-copy">
                 {counters
                   ? `Erfasst: ${counters.totalDetections} · Ausgeloest: ${counters.totalTriggered}${
-                      counters.llmBudgetSkipped ? ` · LLM uebersprungen: ${counters.llmBudgetSkipped}` : ''
+                      counters.llmBudgetSkipped ? ` · LLM übersprungen: ${counters.llmBudgetSkipped}` : ''
                     }${counters.llmFailed ? ` · LLM fehlgeschlagen: ${counters.llmFailed}` : ''}`
-                  : 'Noch keine Zaehlerdaten.'}
+                  : 'Noch keine Zählerdaten.'}
               </p>
             </div>
             <div className="alert-log-controls">
@@ -957,7 +1048,7 @@ function ViewerPage() {
                       <time className="muted-copy"> · {new Date(ev.createdAt).toLocaleTimeString()}</time>
                     </div>
                     <p className="muted-copy alert-log-summary">
-                      {ev.llm?.shortSummary ?? 'LLM laeuft...'}
+                      {ev.llm?.shortSummary ?? 'LLM läuft...'}
                     </p>
                   </div>
                 </li>
@@ -970,7 +1061,7 @@ function ViewerPage() {
           <div className="card-header">
             <div>
               <h2>LLM-Tokenverbrauch</h2>
-              <p className="muted-copy">Kostenkontrolle fuer den aktuellen Viewer-Run.</p>
+              <p className="muted-copy">Kostenkontrolle für den aktuellen Viewer-Run.</p>
             </div>
             <StatusBadge active={!metadata?.llmUsage.usedForMotionDetection}>Kosten</StatusBadge>
           </div>
@@ -983,7 +1074,7 @@ function ViewerPage() {
           <div className="card-header">
             <div>
               <h2>Vision Runtime</h2>
-              <p className="muted-copy">Laufzeitstatus des lokalen Vision-Stacks fuer den Viewer.</p>
+              <p className="muted-copy">Laufzeitstatus des lokalen Vision-Stacks für den Viewer.</p>
             </div>
             <StatusBadge active={Boolean(config?.visionRuntime.reachable)}>Vision</StatusBadge>
           </div>
@@ -1179,6 +1270,15 @@ function CameraPage() {
       }
     } else if (envelope.type === 'detection') {
       setDetection(envelope.payload as DetectionResult)
+    } else if (envelope.type === 'control') {
+      // Viewer steers the target label. Only setTargetLabel — a stable
+      // state setter — is touched here so the detection loop picks up
+      // the new target on the next tick without any hook-order or
+      // side-effect surface on the camera side.
+      const payload = envelope.payload as RemoteControlPayload | undefined
+      if (payload && typeof payload.target === 'string' && payload.target.trim()) {
+        setTargetLabel(payload.target)
+      }
     } else if (envelope.type === 'error') {
       setError(envelope.payload.message)
     }
@@ -1352,7 +1452,7 @@ function CameraPage() {
   return (
     <PageLayout
       title="Camera"
-      subtitle="Android-Smartphone als Kamera-Sender mit Rueckkamera, Wake Lock und lokaler Detection."
+      subtitle="Android-Smartphone als Kamera-Sender mit Rückkamera, Wake Lock und lokaler Detection."
       backLink
     >
       {cameraSupport.status !== 'ok' ? (
@@ -1380,14 +1480,14 @@ function CameraPage() {
               <div>
                 <h2>Viewer und API</h2>
                 <p className="muted-copy">
-                  Live-View, API und Signaling koennen trotzdem bereits erreichbar sein.
+                  Live-View, API und Signaling können trotzdem bereits erreichbar sein.
                 </p>
               </div>
               <StatusBadge active={Boolean(metadata)}>Pfad</StatusBadge>
             </div>
             <p className="muted-copy">
               Der Fehler betrifft nur den Browser-Kamerazugriff. Viewer, Session-API und
-              Signaling koennen parallel bereits korrekt funktionieren.
+              Signaling können parallel bereits korrekt funktionieren.
             </p>
           </article>
         </section>
@@ -1470,7 +1570,7 @@ function CameraPage() {
 
           <div className="target-guidance-card">
             <div className="target-guidance-header">
-              <strong>Praezise Zielbeschreibung</strong>
+              <strong>Präzise Zielbeschreibung</strong>
               <span className={`target-resolution ${targetResolution.confidence}`}>
                 {targetResolution.resolved ? `AI-Ziel: ${targetResolution.resolved}` : 'Bitte Ziel setzen'}
               </span>
@@ -1493,7 +1593,7 @@ function CameraPage() {
                 <span className="target-resolution high">{zoom.toFixed(1)}x aktiv</span>
               </div>
               <p className="muted-copy">
-                Wenn der Android-Browser Zoom-Capabilities freigibt, koennen wir direkt im
+                Wenn der Android-Browser Zoom-Capabilities freigibt, können wir direkt im
                 Kamerastream zwischen drei Fokus-Stufen umschalten.
               </p>
               <div className="zoom-preset-row" data-testid="zoom-presets">
@@ -1546,7 +1646,7 @@ function CameraPage() {
               value={sampleRateMs}
               onChange={(event) => setSampleRateMs(Number(event.target.value))}
             >
-              <option value={250}>0.25s (~4 FPS, Voegel/Eichhoernchen)</option>
+              <option value={250}>0.25s (~4 FPS, Vögel/Eichhörnchen)</option>
               <option value={400}>0.4s (~2.5 FPS, empfohlen)</option>
               <option value={800}>0.8s (Katze/Person)</option>
               <option value={1200}>1.2s (Spar-Modus)</option>
@@ -1559,7 +1659,7 @@ function CameraPage() {
               {torchEnabled ? 'Taschenlampe aus' : 'Taschenlampe an'}
             </button>
           ) : (
-            <p className="muted-copy">Torch ist auf diesem Android-Browser/Geraet nicht freigeschaltet.</p>
+            <p className="muted-copy">Torch ist auf diesem Android-Browser/Gerät nicht freigeschaltet.</p>
           )}
 
           {capabilities.zoomMin !== undefined && capabilities.zoomMax !== undefined ? (
@@ -1591,8 +1691,8 @@ function CameraPage() {
             Session-ID: <code>{sessionId}</code>
           </p>
           <p className="muted-copy">
-            Auf Android fuer laengere Nutzung den Bildschirm aktiv lassen und Akku-Sparmodus nach
-            Moeglichkeit deaktivieren.
+            Auf Android für längere Nutzung den Bildschirm aktiv lassen und Akku-Sparmodus nach
+            Möglichkeit deaktivieren.
           </p>
         </article>
 
@@ -1632,7 +1732,7 @@ function CameraPage() {
             <div>
               <h2>Vision Runtime</h2>
               <p className="muted-copy">
-                Zeigt, ob der groessere Verifier und optional SAM 3 auf diesem Stack aktiv sein koennen.
+                Zeigt, ob der größere Verifier und optional SAM 3 auf diesem Stack aktiv sein können.
               </p>
             </div>
             <StatusBadge active={Boolean(config?.visionRuntime.reachable)}>Vision</StatusBadge>
@@ -1959,7 +2059,7 @@ function evaluateCameraBrowserSupport(): DiagnosticEntry {
   if (typeof window === 'undefined' || typeof navigator === 'undefined') {
     return {
       status: 'warning',
-      detail: 'Browser-Kontext ist noch nicht verfuegbar.',
+      detail: 'Browser-Kontext ist noch nicht verfügbar.',
     }
   }
 
@@ -1967,7 +2067,7 @@ function evaluateCameraBrowserSupport(): DiagnosticEntry {
     return {
       status: 'error',
       detail:
-        'Auf Android blockiert der Browser die Kamera hier, weil die Seite nicht in einem sicheren Kontext laeuft. Oeffnet die Kamera-Seite per HTTPS statt ueber http://192.168.178.39:3000.',
+        'Auf Android blockiert der Browser die Kamera hier, weil die Seite nicht in einem sicheren Kontext läuft. Öffnet die Kamera-Seite per HTTPS statt über http://<LAN-IP>:3000.',
     }
   }
 
@@ -1980,7 +2080,7 @@ function evaluateCameraBrowserSupport(): DiagnosticEntry {
 
   return {
     status: 'ok',
-    detail: 'Sicherer Kontext vorhanden, Kamera-API ist verfuegbar.',
+    detail: 'Sicherer Kontext vorhanden, Kamera-API ist verfügbar.',
   }
 }
 
@@ -1993,7 +2093,7 @@ async function probeTurnRelay(config: AppConfig | null): Promise<DiagnosticEntry
   if (turnUrls.length === 0) {
     return {
       status: 'ok',
-      detail: 'Kein TURN konfiguriert. Im Heimnetz genuegt STUN — TURN ist nur fuer Extern-Zugriff noetig.',
+      detail: 'Kein TURN konfiguriert. Im Heimnetz genuegt STUN — TURN ist nur für Extern-Zugriff noetig.',
     }
   }
 
@@ -2030,7 +2130,7 @@ async function probeTurnRelay(config: AppConfig | null): Promise<DiagnosticEntry
       if (relayCandidates.size > 0) {
         finish({
           status: 'ok',
-          detail: 'TURN liefert Relay-Kandidaten. Fallback fuer schwierigere Netzpfade ist bereit.',
+          detail: 'TURN liefert Relay-Kandidaten. Fallback für schwierigere Netzpfade ist bereit.',
         })
         return
       }
@@ -2046,7 +2146,7 @@ async function probeTurnRelay(config: AppConfig | null): Promise<DiagnosticEntry
       if (relayCandidates.size > 0) {
         finish({
           status: 'ok',
-          detail: 'TURN liefert Relay-Kandidaten. Fallback fuer schwierigere Netzpfade ist bereit.',
+          detail: 'TURN liefert Relay-Kandidaten. Fallback für schwierigere Netzpfade ist bereit.',
         })
         return
       }
@@ -2076,7 +2176,7 @@ function formatDiagnosticStatus(status: DiagnosticStatus) {
     case 'idle':
       return 'Offen'
     case 'running':
-      return 'Prueft'
+      return 'Prüft'
     case 'ok':
       return 'OK'
     case 'warning':
@@ -2095,15 +2195,15 @@ function describeCameraAccessIssue(reason: unknown) {
 
   switch (reason.name) {
     case 'NotAllowedError':
-      return 'Kamera-Zugriff verweigert. Bitte Browser-Kamerarechte freigeben und auf Android die Seite ueber HTTPS oeffnen.'
+      return 'Kamera-Zugriff verweigert. Bitte Browser-Kamerarechte freigeben und auf Android die Seite über HTTPS öffnen.'
     case 'NotFoundError':
       return 'Keine passende Kamera gefunden.'
     case 'NotReadableError':
       return 'Die Kamera ist bereits durch eine andere App oder Browser-Instanz belegt.'
     case 'OverconstrainedError':
-      return 'Die angeforderten Kamera-Einstellungen werden von diesem Geraet nicht unterstuetzt.'
+      return 'Die angeforderten Kamera-Einstellungen werden von diesem Gerät nicht unterstuetzt.'
     case 'SecurityError':
-      return 'Der Browser blockiert den Kamera-Zugriff aus Sicherheitsgruenden. Im LAN ist dafuer in der Regel HTTPS erforderlich.'
+      return 'Der Browser blockiert den Kamera-Zugriff aus Sicherheitsgruenden. Im LAN ist dafür in der Regel HTTPS erforderlich.'
     default:
       return reason.message || 'Kamera konnte nicht gestartet werden.'
   }

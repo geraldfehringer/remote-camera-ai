@@ -11,12 +11,13 @@ export type NarrationResponse = z.infer<typeof NarrationResponseSchema>
 export function systemPrompt(locale: 'de' | 'en'): string {
   if (locale === 'de') {
     return [
-      'Du schreibst Kurzmeldungen fuer eine Heim-Ueberwachungskamera.',
+      'Du schreibst Kurzmeldungen für eine Heim-Überwachungskamera.',
       'Antworte AUSSCHLIESSLICH als JSON, Schema:',
       '{"shortSummary": string (<=120 Zeichen),',
       ' "threatLevel": 0|1|2,',
       ' "suppressAsFalsePositive": boolean}.',
-      'threatLevel: 0=alltaeglich, 1=bemerkenswert, 2=dringend.',
+      'Der Text in "shortSummary" ist IMMER auf Deutsch, mit korrekten Umlauten (ä, ö, ü, ß) und sauberer Grammatik.',
+      'threatLevel: 0=alltäglich, 1=bemerkenswert, 2=dringend.',
       'suppressAsFalsePositive=true nur wenn das Objekt klar kein echtes Zielobjekt ist (Schatten, Blatt, Spiegelung).',
     ].join('\n')
   }

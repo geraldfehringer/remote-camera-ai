@@ -423,12 +423,22 @@ type Session = {
 
 type StoredSession = Omit<Session, 'sockets'>
 
+type ControlPayload = { target?: string; zoom?: number }
+type CapabilitiesPayload = {
+  zoomMin?: number
+  zoomMax?: number
+  zoomStep?: number
+  torch?: boolean
+}
+
 type SignalMessage =
   | { type: 'session-state'; payload: Record<string, unknown> }
   | { type: 'peer-ready'; payload: Record<string, never> }
   | { type: 'description'; payload: { sdp: RTCSessionDescriptionInit } }
   | { type: 'candidate'; payload: { candidate: RTCIceCandidateInit } }
   | { type: 'detection'; payload: DetectionResult }
+  | { type: 'control'; payload: ControlPayload }
+  | { type: 'capabilities'; payload: CapabilitiesPayload }
   | { type: 'error'; payload: { message: string } }
 
 const envSchema = z.object({
@@ -848,8 +858,11 @@ function broadcastAlert(session: Session, event: AlertEvent): void {
   }
 }
 
-function localeFromTarget(rawTarget: string, normalized: string): 'de' | 'en' {
-  return rawTarget.toLowerCase() !== normalized.toLowerCase() ? 'de' : 'en'
+function localeFromTarget(_rawTarget: string, _normalized: string): 'de' | 'en' {
+  // All UI and alert text is German. Switching the LLM output language is
+  // only a prompt variant, not an additional translation call — so we can
+  // stay native (one narration call per alert) and force German.
+  return 'de'
 }
 
 async function maybeNarrate(session: Session, event: AlertEvent, rawTarget: string): Promise<void> {
@@ -1282,6 +1295,15 @@ app.get('/ws', { websocket: true }, (socket, request) => {
       }
 
       if (parsed.type === 'description' || parsed.type === 'candidate') {
+        send(targetSocket, parsed)
+      } else if (parsed.type === 'control' && query.role === 'viewer') {
+        // Viewer steers camera (target dropdown, zoom preset). Camera is the
+        // authority on clamping/validation; server is a dumb pipe.
+        send(targetSocket, parsed)
+      } else if (parsed.type === 'capabilities' && query.role === 'camera') {
+        // Camera announces its zoom/torch capabilities so the viewer can
+        // build the same preset UI. Not persisted server-side — camera
+        // re-emits on peer-ready.
         send(targetSocket, parsed)
       }
     } catch {

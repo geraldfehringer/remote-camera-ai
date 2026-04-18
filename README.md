@@ -38,7 +38,7 @@ Optional fuer maximale Einzelobjekt-Praezision:
 1. Zertifikate erzeugen:
 
 ```bash
-./scripts/generate-dev-cert.sh 192.168.178.39 macmini.local
+./scripts/generate-dev-cert.sh <LAN-IP> macmini.local
 ```
 
 2. Stack neu starten:
@@ -50,14 +50,14 @@ docker compose --env-file .env.docker-desktop.example up -d --build
 3. Auf dem Android-Geraet zuerst das lokale CA-Zertifikat laden:
 
 ```text
-http://192.168.178.39:3000/local-ca.crt
+http://<LAN-IP>:3000/local-ca.crt
 ```
 
 4. Das geladene CA-Zertifikat auf dem Android-Geraet als vertrauenswuerdige CA installieren.
 5. Danach die App nur noch ueber die sichere URL oeffnen:
 
 ```text
-https://192.168.178.39
+https://<LAN-IP>
 ```
 
 6. Session erzeugen und den Camera-Link scannen oder direkt oeffnen.
@@ -85,14 +85,14 @@ npm run test:e2e
 ## Reale Kamera im gleichen WLAN
 
 - Wenn eure echte Remote-Kamera im selben WLAN wie der Mac mini ist, nutzt fuer beide Android-Geraete die Mac-mini-Adresse wie `http://macmini.local:3000` oder die feste LAN-IP.
-- Fuer den echten Kamera-Sender auf Android nutzt nach Zertifikat-Import die HTTPS-Adresse wie `https://192.168.178.39`.
+- Fuer den echten Kamera-Sender auf Android nutzt nach Zertifikat-Import die HTTPS-Adresse wie `https://<LAN-IP>`.
 - In diesem LAN-Szenario klappt WebRTC oft schon direkt ueber Host-Kandidaten; `coturn` bleibt trotzdem als Fallback aktiv.
 - Fuer die echte Kamera-Freigabe am Android-Geraet muss der Browser im Vordergrund bleiben und die Kamera-Permission einmal bestaetigt werden.
 - Fuer Android als Kamera-Sender reicht HTTP ueber die LAN-IP nicht aus. Die Kamera-Seite muss per HTTPS in einem vertrauenswuerdigen Kontext geoeffnet werden.
 - Das lokale CA-Zertifikat ist absichtlich ueber `http://<macmini-ip>:3000/local-ca.crt` erreichbar, damit ihr es vor dem HTTPS-Aufruf bequem aufs Android laden koennt.
 - Fuer den eigentlichen App-Zugriff reicht im LAN der Frontend-Port `3000`. Das Frontend leitet `/api` und `/ws` intern an den API-Container weiter.
-- Session-Links werden automatisch mit genau dem Host und Port erzeugt, ueber den ihr die Startseite aufruft. Wenn ihr also `http://192.168.178.39:3000` nutzt, zeigen auch Camera- und Viewer-Link auf diese Adresse.
-- Wenn ihr die App ueber `https://192.168.178.39` oeffnet, zeigen die Session-Links automatisch ebenfalls auf diese sichere Adresse.
+- Session-Links werden automatisch mit genau dem Host und Port erzeugt, ueber den ihr die Startseite aufruft. Wenn ihr also `http://<LAN-IP>:3000` nutzt, zeigen auch Camera- und Viewer-Link auf diese Adresse.
+- Wenn ihr die App ueber `https://<LAN-IP>` oeffnet, zeigen die Session-Links automatisch ebenfalls auf diese sichere Adresse.
 - Wenn `ICE_TURN_URLS` im Desktop-Profil auf `localhost` stehen, werden diese fuer Browser-Clients automatisch auf den aktuell aufgerufenen Mac-mini-Host umgeschrieben.
 - Die Ports `3000`, `3478/tcp`, `3478/udp` und `49160-49200/udp` sind im Compose-Setup explizit auf `0.0.0.0` veroeffentlicht und damit im lokalen Netzwerk ueber den Mac mini erreichbar.
 - Zusaetzlich ist HTTPS auf `443/tcp` und alternativ `3443/tcp` veroeffentlicht.

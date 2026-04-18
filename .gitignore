@@ -6,6 +6,11 @@
 # .claude/ holds machine-local Claude Code settings, skills, agents.
 # May contain session-derived context; keep out of the repo.
 .claude/
+
+# docs/superpowers/ holds planning + spec notes from local Claude Code
+# workflows. They expose internal reasoning and iterations — useful during
+# development, but not for a public repository.
+docs/superpowers/
 node_modules
 dist
 coverage
