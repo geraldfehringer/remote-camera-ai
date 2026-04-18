@@ -1,6 +1,8 @@
 # Remote Camera AI
 
-> **Lizenz-Kurzfassung:** Dieses Projekt steht unter der **[PolyForm Noncommercial License 1.0.0](./LICENSE)**. Private, schulische, karitative und nicht-kommerzielle Nutzung ist erlaubt — **kommerzielle Nutzung ist ausdrücklich untersagt** und nur mit schriftlicher Genehmigung des Autors zulässig. Die Software wird **ohne jegliche Gewährleistung** bereitgestellt; der Autor übernimmt **keine Haftung** für Schäden aus Nutzung oder Fehlkonfiguration. Details siehe Abschnitt [Lizenz & Haftungsausschluss](#lizenz--haftungsausschluss) am Ende dieser Datei.
+> 📦 **Erstinstallation:** Die vollständige Schritt-für-Schritt-Anleitung inkl. Mindest-Systemvoraussetzungen, Setup-Checkliste, HTTPS-Einrichtung und Troubleshooting findest du in **[INSTALLATION.md](./INSTALLATION.md)**. Dieses README hier ist die Kurz-Referenz; für einen sauberen Erststart bitte zuerst `INSTALLATION.md` durchgehen.
+
+> ⚖️ **Lizenz-Kurzfassung:** Dieses Projekt steht unter der **[PolyForm Noncommercial License 1.0.0](./LICENSE)**. Private, schulische, karitative und nicht-kommerzielle Nutzung ist erlaubt — **kommerzielle Nutzung ist ausdrücklich untersagt** und nur mit schriftlicher Genehmigung des Autors zulässig. Die Software wird **ohne jegliche Gewährleistung** bereitgestellt; der Autor übernimmt **keine Haftung** für Schäden aus Nutzung oder Fehlkonfiguration. Details siehe Abschnitt [Lizenz & Haftungsausschluss](#lizenz--haftungsausschluss) am Ende dieser Datei.
 
 Eine moderne WebRTC-Webapp, mit der ein Android-Smartphone im Browser als Remote-Kamera arbeitet und ein zweites Android-Geraet den Live-Stream sieht. Alle Services laufen lokal per Docker Compose auf dem Mac mini in eurer Dev-Umgebung. Optional laeuft parallel eine lokale KI-Pipeline fuer Motion Detection und Objekterkennung, damit bei Bewegung und Zielobjekten wie `bird` ein Alarm inkl. Snapshot ausgeloest werden kann.
 
