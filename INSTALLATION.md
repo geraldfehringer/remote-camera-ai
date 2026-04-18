@@ -10,7 +10,7 @@ Dieser Leitfaden bringt den kompletten Stack (Web, API, Vision, WhatsApp-Sidecar
 |---|---|---|
 | **CPU** | 4 Kerne, AVX2-Support | Apple Silicon (M1/M2/M4) oder x86_64 mit 8 Kernen |
 | **RAM** | 8 GB | 16 GB |
-| **Speicher** | 12 GB frei (Images + Modelle) | 30 GB (mit Alert-Archiv) |
+| **Speicher** | 35 GB frei (Docker-Images + Modelle) | 60 GB (mit Alert-Archiv + Puffer) |
 | **OS** | macOS 13+, Ubuntu 22.04+, Debian 12+ | macOS 15+ / Ubuntu 24.04 |
 | **Docker** | Docker Desktop 4.25+ oder Docker Engine 25+ | Docker Desktop 4.35+ oder Docker Engine 27+ |
 | **Docker Compose** | v2.20+ (in Docker Desktop enthalten) | v2.30+ |
@@ -20,9 +20,36 @@ Dieser Leitfaden bringt den kompletten Stack (Web, API, Vision, WhatsApp-Sidecar
 | **iOS-Kamera-Handy** | Safari 17+ unter iOS 17+ | Safari 18+ unter iOS 18+ |
 
 **Allgemeine Hinweise:**
-- Der Vision-Container lädt beim ersten Build YOLO26n, YOLOE-26x und BioCLIP 2 (zusammen ~4 GB). Dafür wird eine stabile Internet-Verbindung benötigt.
-- SAM 3 ist optional und muss manuell unter `vision/models/sam3.pt` abgelegt werden.
 - Für echte Kamera-Nutzung am Handy (Android **oder** iOS) ist HTTPS Pflicht — ohne sicheren Kontext bleibt `getUserMedia()` gesperrt.
+- Der erste `docker compose up --build` lädt mehrere GB herunter. Plane beim Erststart ~30 Minuten auf einer 100-Mbit-Leitung ein. Folgende Builds nutzen Docker-Layer-Cache und sind deutlich schneller.
+
+**Download-Größen pro Service (nach dem ersten Build):**
+
+| Service | Image-Größe | Herkunft |
+|---|---|---|
+| `vision` | **~24 GB** | `python:3.13-slim` (~120 MB) + PyTorch CPU (~1 GB) + Ultralytics + YOLO26n (~10 MB) + YOLOE-26x-seg (~250 MB) + MobileCLIP2_b (~100 MB) + BioCLIP 2 (~500 MB) + CUDA-Bibliotheken und Caches |
+| `api` | ~530 MB | `node:24-bookworm-slim` + Fastify 5 + deps |
+| `whatsapp` | ~520 MB | `node:22-slim` + Baileys + deps |
+| `coturn` | ~240 MB | Upstream `coturn/coturn:4.6.3` |
+| `web` | ~90 MB | `nginxinc/nginx-unprivileged:1.29-alpine` + gebundeltes SPA |
+| **Summe** | **~25 GB** | einmalig beim Erststart, danach gecacht |
+
+Zusätzlich werden beim Vision-Build die Modellgewichte fest ins Image eingebrannt, damit der Container ohne Internet starten kann. Ein einmaliger Download von ~4 GB (Gewichte) + ~20 GB (Base-Image + Python-Wheels) ist daher normal. Bei `docker compose build --no-cache` werden diese Downloads wiederholt — vermeiden, wenn nicht zwingend nötig.
+
+**SAM 3 (optional, manuelle Einrichtung):**
+
+SAM 3 (Segment Anything Model 3) ist von Meta auf [Hugging Face](https://huggingface.co/facebook/sam3) veröffentlicht und **nicht frei herunterladbar** — Meta verlangt die Zustimmung zu seinen Nutzungsbedingungen. Der Download funktioniert nur mit einem Hugging-Face-Account und nach Akzeptanz des Model-Lizenz-Gates.
+
+Schritt für Schritt:
+
+1. [Hugging-Face-Account](https://huggingface.co/join) anlegen (kostenlos, E-Mail-Bestätigung).
+2. Auf der [SAM-3-Model-Card](https://huggingface.co/facebook/sam3) die Lizenz lesen und „Agree and access repository" klicken.
+3. Einen persönlichen **Read-Token** unter <https://huggingface.co/settings/tokens> erzeugen (Type: Read).
+4. Das Ultralytics-kompatible Weight-File `sam3.pt` herunterladen (z. B. via `huggingface-cli` oder direkt im Browser aus den Files im Repo).
+5. Die Datei unter `vision/models/sam3.pt` ablegen — der Vision-Container mountet diesen Ordner als `/app/extra-models` im Read-only-Modus.
+6. Den Vision-Container neu starten: `docker compose restart vision`. In den Startup-Logs sollte `sam3 loaded` erscheinen.
+
+Ohne `sam3.pt` bleibt der SAM-3-Schritt in der Pipeline automatisch inaktiv und YOLOE-26x ist der stärkste aktive Verifier. Die Gesamtfunktion der App ist nicht beeinträchtigt — SAM 3 verbessert nur die Präzision der Segmentierung bei schwierigen Szenen (Blätter, Reflexionen, teilweise verdeckte Tiere).
 
 **Plattform-Unterschiede am Kamera-Handy:**
 
@@ -101,10 +128,10 @@ Android Chrome und iOS Safari geben `getUserMedia()` nur in einem sicheren Konte
 - [ ] Ein Vogel/eine Person ins Bild bewegen — im Viewer erscheint unter „Alarm-Übersicht" ein Treffer.
 - [ ] Falls WhatsApp konfiguriert: Nachricht landet am Handy.
 
-### F. Optional: SAM-3 und WhatsApp
+### F. Optional: SAM 3 und WhatsApp
 
-- [ ] SAM-3-Modell (optional, für präzise Segmentierung) unter `vision/models/sam3.pt` ablegen. Der Vision-Container erkennt die Datei beim nächsten Start automatisch.
-- [ ] WhatsApp-Pairing: Auf der Startseite QR-Code scannen, sobald `WHATSAPP_ENABLED=true` ist.
+- [ ] **SAM 3** (optional, für präzisere Segmentierung): Hugging-Face-Schritte aus Abschnitt 1 (Mindest-Systemvoraussetzungen → SAM 3) befolgen und `sam3.pt` unter `vision/models/sam3.pt` ablegen. Ohne die Datei bleibt der Schritt inaktiv — die App funktioniert trotzdem vollständig.
+- [ ] **WhatsApp-Pairing:** Auf der Startseite QR-Code scannen, sobald `WHATSAPP_ENABLED=true` gesetzt ist. Nur einmal pro Gerät nötig; Baileys legt die Session in `./data/whatsapp-auth/` ab.
 
 ---
 

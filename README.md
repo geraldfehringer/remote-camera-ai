@@ -26,11 +26,15 @@ Eine moderne WebRTC-Webapp, mit der ein Smartphone im Browser als Remote-Kamera 
 docker compose up --build
 ```
 
-Optional für maximale Einzelobjekt-Präzision:
+Optional für maximale Einzelobjekt-Präzision — **SAM 3** hinzufügen:
 
-1. Lege `sam3.pt` unter [vision/models/.gitkeep](/Users/geri/_GIT_REPOS/remote-camera-ai/vision/models/.gitkeep) bzw. praktisch als `vision/models/sam3.pt` ab.
-2. Der `vision`-Service mountet diesen Ordner nach `/app/extra-models`, sodass SAM 3 ohne weiteren Codewechsel aktiv wird.
-3. Ohne lokale `sam3.pt` bleibt der SAM-3-Schritt automatisch inaktiv; YOLOE26-X bleibt dann der stärkste aktive Verifier.
+1. Kostenlosen Hugging-Face-Account anlegen: <https://huggingface.co/join>.
+2. Auf der Model-Card <https://huggingface.co/facebook/sam3> die Lizenz akzeptieren (Button „Agree and access repository"). Ohne diese Zustimmung ist der Download gesperrt.
+3. `sam3.pt` herunterladen und unter `vision/models/sam3.pt` ablegen.
+4. Der `vision`-Service mountet diesen Ordner als `/app/extra-models`, sodass SAM 3 beim nächsten `docker compose restart vision` ohne weiteren Codewechsel aktiv wird.
+5. Ohne lokale `sam3.pt` bleibt der SAM-3-Schritt automatisch inaktiv; YOLOE26-X bleibt dann der stärkste aktive Verifier — die App funktioniert vollständig.
+
+Detaillierte Schritte (inkl. Read-Token + CLI-Variante) stehen in [INSTALLATION.md → SAM 3](./INSTALLATION.md#1-mindest-systemvoraussetzungen).
 
 6. Webapp über den Mac-mini-Hostnamen oder seine LAN-IP öffnen, z. B. `http://macmini.local:3000`.
 7. Eine Session erzeugen.
