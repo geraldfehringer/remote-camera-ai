@@ -19,10 +19,22 @@ Dieser Leitfaden bringt den kompletten Stack (Web, API, Vision, WhatsApp-Sidecar
 | **Android-Kamera-Handy** | Chrome 120+, Android 10+ | Chrome 147+, Android 13+ |
 | **iOS-Kamera-Handy** | Safari 17+ unter iOS 17+ | Safari 18+ unter iOS 18+ |
 
-**Hinweise:**
+**Allgemeine Hinweise:**
 - Der Vision-Container lädt beim ersten Build YOLO26n, YOLOE-26x und BioCLIP 2 (zusammen ~4 GB). Dafür wird eine stabile Internet-Verbindung benötigt.
 - SAM 3 ist optional und muss manuell unter `vision/models/sam3.pt` abgelegt werden.
-- Für echte Kamera-Nutzung am Android-Handy ist HTTPS Pflicht (`getUserMedia()` bleibt sonst gesperrt).
+- Für echte Kamera-Nutzung am Handy (Android **oder** iOS) ist HTTPS Pflicht — ohne sicheren Kontext bleibt `getUserMedia()` gesperrt.
+
+**Plattform-Unterschiede am Kamera-Handy:**
+
+| Feature | Android (Chrome 120+) | iOS (Safari 17+) |
+|---|---|---|
+| Rückkamera | ✅ | ✅ |
+| Screen Wake Lock (Display bleibt an) | ✅ | ⚠️ erst ab iOS 16.4 |
+| Hardware-Zoom (3-Stufen-Preset) | ✅ | ❌ (nicht in `MediaTrackCapabilities` exponiert) |
+| Torch / Taschenlampe | ✅ (wo Gerät das unterstützt) | ❌ |
+| Dritt-Browser (Firefox, Edge, Chrome) | eigene Engine, meist kompatibel | alle zwangsweise WebKit → verhalten sich wie Safari |
+| Eingehende Telefonanrufe | Stream pausiert kurz, setzt oft auf | Stream endet dauerhaft — „Kamera starten" muss manuell neu gedrückt werden |
+| Home-Screen-PWA | OK | ❌ empfohlen zu vermeiden (Kamera-Zugriff im PWA-Modus instabil) |
 
 ---
 
@@ -58,19 +70,26 @@ Zwei fertige Profile liegen bei:
 - [ ] API antwortet: `curl -sS http://localhost:8080/api/health` gibt `{"ok":true}` zurück.
 - [ ] Frontend lädt: Browser-Aufruf `http://localhost:3000` (Desktop-Profil) bzw. `http://macmini.local:3000` (LAN) zeigt die Startseite.
 
-### D. HTTPS für Android-Kamera einrichten (nur LAN-Profil)
+### D. HTTPS für Kamera-Handy einrichten (nur LAN-Profil)
 
-Android Chrome gibt `getUserMedia` nur in einem sicheren Kontext frei. Für den echten Kamera-Sender brauchst du also HTTPS.
+Android Chrome und iOS Safari geben `getUserMedia()` nur in einem sicheren Kontext frei. Für den echten Kamera-Sender brauchst du also HTTPS. Das lokale CA-Zertifikat ist **nicht zwingend nötig** — ohne installierte CA zeigt der Browser bei jedem `https://<LAN-IP>`-Aufruf die Warnung „Ihre Verbindung ist nicht privat" und du musst dich über „Erweitert" → „Weiter zu …" klicken. Mit installierter CA entfällt die Warnung komplett und die App startet ohne Extra-Klicks.
 
 - [ ] Zertifikate erzeugen (Beispiel mit eigener LAN-IP):
+
   ```bash
   ./scripts/generate-dev-cert.sh <LAN-IP> macmini.local
   ```
+
 - [ ] Stack neu starten (Zertifikate werden erst beim Build eingebunden):
+
   ```bash
   docker compose up -d --build web
   ```
-- [ ] CA-Zertifikat am Android-Handy laden: `http://<LAN-IP>:3000/local-ca.crt` aufrufen und als vertrauenswürdige CA installieren.
+
+- [ ] CA-Zertifikat am Kamera-Handy laden: `http://<LAN-IP>:3000/local-ca.crt` aufrufen.
+- [ ] CA-Zertifikat als vertrauenswürdig installieren:
+  - **Android:** Einstellungen → Biometrie/Sicherheit → Weitere Sicherheitseinstellungen → Vom Speicher installieren → Datei wählen → als CA-Zertifikat markieren.
+  - **iOS:** Profil wird beim Download angeboten → Einstellungen → Profil geladen → Installieren → danach Einstellungen → Allgemein → Info → Zertifikatsvertrauenseinstellungen → volles Vertrauen aktivieren.
 - [ ] Danach die App nur noch unter `https://<LAN-IP>` öffnen.
 
 ### E. Erster End-to-End-Test
